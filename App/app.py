@@ -58,10 +58,13 @@ with tab1:
 
                 resume_data = parse_resume(uploaded_file)
 
+                st.session_state.resume_data = resume_data
                 uploaded_file.seek(0)
                 resume_text = extract_text_from_pdf(uploaded_file)
-
+                st.session_state.resume_text = resume_text
             st.success("Resume Parsed Successfully")
+            
+            
 
             st.markdown("### Candidate Information")
 
@@ -127,145 +130,115 @@ with tab1:
                     st.write(f"• {skill}")
 
             else:
-
-                st.warning(
-                    "No recognizable skills found."
+                st.warning("No recognized skills found in job description")
+            
+            # Store in session state (IMPORTANT!)
+            st.session_state.job_description = job_description
+            st.session_state.job_skills = job_skills
+        else:
+            st.info("Click to match the skills")
+    
+    # ============================================
+    # SCORING SECTION
+    # ============================================
+    st.divider()
+    
+    # Get data from session state
+    resume_data = st.session_state.get('resume_data')
+    job_description = st.session_state.get('job_description')
+    job_skills = st.session_state.get('job_skills', [])
+    
+    if resume_data and job_description and job_skills:
+        if st.button("Calculate Match Score", use_container_width=True):
+            # Calculate score
+            score_result = calculate_score(resume_data['skills'], job_skills)
+            
+            # SAVE TO SESSION STATE (CRITICAL!)
+            st.session_state.score_result = score_result
+            
+            # Display score
+            col1, col2, col3 = st.columns([1, 1, 1])
+            
+            with col1:
+                score_interpretation, _ = get_score_interpretation(score_result['score'])
+                st.metric(
+                    "Match Score",
+                    f"{score_result['score']}%",
+                    delta=score_interpretation
                 )
-
-st.divider()
-
-if resume_data and job_description and job_skills:
-
-    if st.button("Calculate Match Score", use_container_width=True):
-
-        score_result = calculate_score(
-            resume_data["skills"],
-            job_skills
-        )
-
-        st.subheader("Match Analysis")
-
-        col1, col2, col3 = st.columns(3)
-
-        interpretation, color = get_score_interpretation(
-            score_result["score"]
-        )
-
-        with col1:
-
-            st.metric(
-                "Match Score",
-                f"{score_result['score']}%"
-            )
-
-            st.write(interpretation)
-
-        with col2:
-
-            st.metric(
-                "Skills Matched",
-                f"{score_result['total_matched']} / {score_result['total_required']}"
-            )
-
-        with col3:
-
-            st.metric(
-                "Missing Skills",
-                len(score_result["missing_skills"])
-            )
-
+            
+            with col2:
+                st.metric(
+                    "Skills Matched",
+                    f"{score_result['total_matched']}/{score_result['total_required']}"
+                )
+            
+            with col3:
+                st.metric(
+                    "Missing Skills",
+                    len(score_result['missing_skills'])
+                )
+            
+            # Display matched/missing skills
+            st.subheader("Detailed Analysis")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.success("Matched Skills")
+                if score_result['matched_skills']:
+                    for skill in score_result['matched_skills']:
+                        st.write(f"  • {skill}")
+                else:
+                    st.write("None")
+            
+            with col2:
+                st.error("Missing Skills")
+                if score_result['missing_skills']:
+                    for skill in score_result['missing_skills']:
+                        st.write(f"  • {skill}")
+                else:
+                    st.write("All skills present!")
+            
+            with col3:
+                st.info("Extra Skills")
+                if score_result['extra_skills']:
+                    for skill in score_result['extra_skills'][:5]:
+                        st.write(f"  • {skill}")
+                    if len(score_result['extra_skills']) > 5:
+                        st.write(f"  • +{len(score_result['extra_skills']) - 5} more...")
+                else:
+                    st.write("None")
+        
+        # SAVE BUTTON (Now works because score_result is in session_state)
         st.divider()
-
-        left, middle, right = st.columns(3)
-
-        with left:
-
-            st.success("Matched Skills")
-
-            if score_result["matched_skills"]:
-
-                for skill in score_result["matched_skills"]:
-
-                    st.write(f"✅ {skill}")
-
-            else:
-
-                st.write("No matched skills.")
-
-        with middle:
-
-            st.error("Missing Skills")
-
-            if score_result["missing_skills"]:
-
-                for skill in score_result["missing_skills"]:
-
-                    st.write(f"❌ {skill}")
-
-            else:
-
-                st.write("No missing skills.")
-
-        with right:
-
-            st.info("Extra Skills")
-
-            if score_result["extra_skills"]:
-
-                for skill in score_result["extra_skills"]:
-
-                    st.write(f"⭐ {skill}")
-
-            else:
-
-                st.write("No extra skills.")
-
-        st.divider()
-
-        if st.button(
-            "Save Screening Result",
-            use_container_width=True
-        ):
-
-            try:
-
-                candidate_name = (
-                    resume_data["name"]
-                    if resume_data["name"]
-                    else "Unknown"
-                )
-
-                save_screening_result(
-
-                    candidate_name=candidate_name,
-
-                    email=resume_data["email"],
-
-                    phone=resume_data["phone"],
-
-                    resume_text=resume_text,
-
-                    job_description=job_description,
-
-                    score_data=score_result
-
-                )
-
-                st.success(
-                    "Screening Result Saved Successfully!"
-                )
-
-            except Exception as e:
-
-                st.error(str(e))
-
-elif resume_data or job_description:
-
-    st.warning(
-        "Please upload a resume and provide a job description."
-    )
+        
+        if st.session_state.get('score_result'):
+            if st.button("Save Screening Result", use_container_width=True):
+                try:
+                    candidate_name = resume_data.get("name", "Unknown")
+                    
+                    save_screening_result(
+                        candidate_name=candidate_name,
+                        email=resume_data['email'],
+                        phone=resume_data['phone'],
+                        resume_text=st.session_state.resume_text,
+                        job_description=st.session_state.job_description,
+                        score_data=st.session_state.score_result
+                    )
+                    
+                    st.success("Result saved to database!")
+                    st.balloons()  # Celebration animation!
+                except Exception as e:
+                    st.error(f"Error saving to database: {str(e)}")
+    
+    elif resume_data or job_description:
+        st.warning("Please provide both resume and job description to calculate score")
 
 
+# ============================================
+# TAB 2: RESULTS HISTORY
+# ============================================
 with tab2:
 
     st.subheader("Screening History")
@@ -273,9 +246,8 @@ with tab2:
     screenings = get_all_screenings()
 
     if screenings:
-
-        st.info(f"Total Screenings: {len(screenings)}")
-
+        st.info(f"Total screenings: {len(screenings)}")
+        
         for screening in screenings:
 
             with st.expander(
@@ -329,7 +301,6 @@ with tab2:
                     key=f"delete_{screening['id']}"
                 ):
 
-                    from database import delete_screening
 
                     delete_screening(screening["id"])
 
@@ -340,6 +311,9 @@ with tab2:
         st.info("No Screening History Found.")
 
 
+# ============================================
+# TAB 3: STATISTICS
+# ============================================
 with tab3:
 
     st.subheader("Statistics")
@@ -363,18 +337,10 @@ with tab3:
         )
 
     with col3:
-
-        st.metric(
-            "High Performers",
-            stats["high_performers"]
-        )
-
-    st.divider()
-
-    if stats["total_screenings"] > 0:
-
-        st.success("Statistics Generated Successfully")
-
+        st.metric("High Performers (70%+)", stats['high_performers'])
+    
+    if stats['total_screenings'] > 0:
+        st.success("You have screening data. Great job!")
     else:
 
         st.info("No data available yet.")
