@@ -28,6 +28,23 @@ def init_database():
         )
     """)
     
+    # Create interviews table (NEW!)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS interviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            screening_id INTEGER,
+            candidate_name TEXT,
+            candidate_email TEXT,
+            interview_date TEXT,
+            interview_time TEXT,
+            interviewer_email TEXT,
+            status TEXT DEFAULT 'Scheduled',
+            notes TEXT,
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (screening_id) REFERENCES screenings(id)
+        )
+    """)
+    
     conn.commit()
     conn.close()
     
@@ -50,7 +67,7 @@ def save_screening_result(
         job_description (str): Job description
         score_data (dict): Score data from scoring_engine
     """
-    conn= sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
     missing_skills = json.dumps(score_data.get('missing_skills', []))
@@ -77,13 +94,12 @@ def save_screening_result(
         score_data.get('total_matched', 0)
     )) 
     
-    
     conn.commit()
     conn.close()
     
     return True
 
-def  get_all_screenings():
+def get_all_screenings():
     """Retrieve all screening results from database"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -109,7 +125,6 @@ def  get_all_screenings():
     
     return screenings
  
- 
 def get_screening_by_id(screening_id):
     """Get specific screening result by ID"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -129,7 +144,6 @@ def get_screening_by_id(screening_id):
     
     return None
  
- 
 def delete_screening(screening_id):
     """Delete a screening result"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -140,7 +154,6 @@ def delete_screening(screening_id):
     conn.close()
     
     return True
- 
  
 def get_statistics():
     """Get overall statistics from all screenings"""
@@ -166,10 +179,98 @@ def get_statistics():
         'average_score': round(avg_score, 2),
         'high_performers': high_performers
     }
- 
- 
+
+
+# ============================================
+# NEW INTERVIEW SCHEDULING FUNCTIONS
+# ============================================
+
+def schedule_interview(screening_id, candidate_name, candidate_email, interview_date, interview_time, interviewer_email, notes=""):
+    """Schedule an interview for a candidate"""
+    
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO interviews (
+            screening_id, candidate_name, candidate_email, 
+            interview_date, interview_time, interviewer_email, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (screening_id, candidate_name, candidate_email, interview_date, interview_time, interviewer_email, notes))
+    
+    conn.commit()
+    conn.close()
+    
+    return True
+
+
+def get_all_interviews():
+    """Retrieve all scheduled interviews"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT * FROM interviews 
+        ORDER BY interview_date DESC, interview_time DESC
+    """)
+    
+    results = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in results]
+
+
+def get_interviews_by_status(status):
+    """Get interviews by status (Scheduled, Completed, Cancelled)"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT * FROM interviews 
+        WHERE status = ?
+        ORDER BY interview_date DESC
+    """, (status,))
+    
+    results = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in results]
+
+
+def update_interview_status(interview_id, status):
+    """Update interview status (Scheduled, Completed, Cancelled)"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE interviews 
+        SET status = ?
+        WHERE id = ?
+    """, (status, interview_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return True
+
+
+def delete_interview(interview_id):
+    """Delete an interview"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM interviews WHERE id = ?", (interview_id,))
+    conn.commit()
+    conn.close()
+    
+    return True
+
+
 if __name__ == "__main__":
     # Initialize database when script is run directly
     init_database()
     print("Database initialized successfully!")
- 
+    print("Screenings table created")
+    print("Interviews table created")

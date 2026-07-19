@@ -1,6 +1,7 @@
 import streamlit as st
 
 from resume_parser import parse_resume, extract_text_from_pdf
+
 from scoring_engine import (
     extract_job_skills,
     calculate_score,
@@ -11,7 +12,12 @@ from database import (
     init_database,
     save_screening_result,
     get_all_screenings,
-    get_statistics
+    get_statistics,
+    delete_screening,
+    schedule_interview,
+    get_all_interviews,
+    update_interview_status,
+    delete_interview
 )
 
 init_database()
@@ -21,17 +27,18 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📄 Resume Screening Chatbot")
+st.title("Resume Screening Chatbot")
 
 st.write(
     "Upload a resume and compare it with the Job Description."
 )
 
-tab1, tab2, tab3 = st.tabs(
+tab1, tab2, tab3, tab4 = st.tabs(
     [
         "Resume Screening",
         "History",
-        "Statistics"
+        "Statistics",
+        "Schedule Interview"
     ]
 )
 
@@ -236,9 +243,6 @@ with tab1:
         st.warning("Please provide both resume and job description to calculate score")
 
 
-# ============================================
-# TAB 2: RESULTS HISTORY
-# ============================================
 with tab2:
 
     st.subheader("Screening History")
@@ -311,9 +315,6 @@ with tab2:
         st.info("No Screening History Found.")
 
 
-# ============================================
-# TAB 3: STATISTICS
-# ============================================
 with tab3:
 
     st.subheader("Statistics")
@@ -344,3 +345,101 @@ with tab3:
     else:
 
         st.info("No data available yet.")
+        
+
+with tab4:
+    st.subheader("Schedule Interview")
+    
+    screenings = get_all_screenings()
+    
+    if screenings:
+        st.info(f"Found {len(screenings)} candidates from screening")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            
+            candidate_options = [f"{s['candidate_name']} (Score: {s['score']}%)" for s in screenings]
+            
+            selected_idx = st.selectbox("Choose candidate:", range(len(screenings)), format_func=lambda x: candidate_options[x])
+            
+            selected_screening = screenings[selected_idx]
+            
+            st.write(f"**Email:** {selected_screening['email']}")
+            st.write(f"**Score:** {selected_screening['score']}")
+    
+        with col2:
+            st.write("**Interview Details**")
+            
+            interview_date = st.date_input("Interview Date:")
+            
+            interview_time = st.time_input("Interview Time:")
+            
+            interviewer_email = st.text_input("Interviewer Email:", value="recruiter@company.com")
+            
+            notes = st.text_area("Notes:", height=80)
+            
+        if st.button("Schedule Interview", use_container_width=True):
+            try:
+                schedule_interview(
+                    screening_id=selected_screening['id'],
+                    candidate_name=selected_screening['candidate_name'],
+                    candidate_email=selected_screening['email'],
+                    interview_date=str(interview_date),
+                    interview_time=str(interview_time),
+                    interviewer_email=interviewer_email,
+                    notes=notes
+                )
+                st.success(f"Interview scheduled for {selected_screening['candidate_name']}!")
+                st.balloons()
+            except Exception as e:
+                st.error(f"Error scheduling interview: {str(e)}")
+        
+        # Display scheduled interviews
+        st.divider()
+        st.subheader("Scheduled Interviews")
+        
+        interviews = get_all_interviews()
+        if interviews:
+            st.info(f"Total scheduled: {len(interviews)}")
+            
+            for interview in interviews:
+                with st.expander(f"🔹 {interview['candidate_name']} - {interview['interview_date']} {interview['interview_time']}"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"**Email:** {interview['candidate_email']}")
+                        st.write(f"**Date:** {interview['interview_date']}")
+                        st.write(f"**Time:** {interview['interview_time']}")
+                    
+                    with col2:
+                        st.write(f"**Interviewer:** {interview['interviewer_email']}")
+                        st.write(f"**Status:** {interview['status']}")
+                        st.write(f"**Created:** {interview['created_date']}")
+                    
+                    if interview['notes']:
+                        st.write(f"**Notes:** {interview['notes']}")
+                    
+                    # Update status
+                    new_status = st.selectbox("Update Status:", 
+                                            ["Scheduled", "Completed", "Cancelled"],
+                                            index=["Scheduled", "Completed", "Cancelled"].index(interview['status']),
+                                            key=f"status_{interview['id']}")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("Update Status", key=f"update_{interview['id']}"):
+                            update_interview_status(interview['id'], new_status)
+                            st.success(f"Status updated to {new_status}")
+                            st.rerun()
+                    
+                    with col2:
+                        if st.button("Delete", key=f"delete_interview_{interview['id']}"):
+                            delete_interview(interview['id'])
+                            st.success("Interview deleted")
+                            st.rerun()
+        else:
+            st.info("No interviews scheduled yet")
+    else:
+        st.warning("No candidates available. Please screen resumes first!")
+                
