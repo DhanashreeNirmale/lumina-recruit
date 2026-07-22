@@ -190,3 +190,37 @@ if __name__ == "__main__":
 
         for key, value in candidate.items():
             print(f"{key.upper()} : {value}")
+            
+def extract_text_from_docx(docx_input):
+    """Extract text from DOCX (Word) file"""
+    try:
+        from docx import Document
+        doc = Document(docx_input)
+        text = ""
+        for para in doc.paragraphs:
+            text += para.text + "\n"
+        return text
+    except Exception as e:
+        return f"Error extracting DOCX: {str(e)}"
+
+
+def extract_text_from_txt(txt_input):
+    """Extract text from TXT file"""
+    try:
+        return txt_input.getvalue().decode('utf-8')
+    except Exception as e:
+        return f"Error extracting TXT: {str(e)}"
+
+
+def extract_text_from_file(file_input):
+    """Extract text from any file format (PDF, DOCX, TXT)"""
+    filename = file_input.name.lower()
+    
+    if filename.endswith('.pdf'):
+        return extract_text_from_pdf(file_input)
+    elif filename.endswith('.docx'):
+        return extract_text_from_docx(file_input)
+    elif filename.endswith('.txt'):
+        return extract_text_from_txt(file_input)
+    else:
+        return f"Error: Unsupported file format. Please use PDF, DOCX, or TXT"
