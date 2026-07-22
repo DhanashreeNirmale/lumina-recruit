@@ -46,14 +46,13 @@ def extract_phone(text):
 
     return match.group() if match else None
 
-
 def extract_name(text):
     doc = nlp(text)
 
+    print("\n===== ENTITIES =====")
     for ent in doc.ents:
-        if ent.label_ == "PERSON":
-            if len(ent.text.split()) >= 2:
-                return ent.text
+        print(ent.text, "->", ent.label_)
+    print("====================")
 
     return None
 
