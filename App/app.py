@@ -1,6 +1,6 @@
 import streamlit as st
 
-from resume_parser import parse_resume, extract_text_from_pdf
+from resume_parser import parse_resume, extract_text_from_file
 
 from scoring_engine import (
     extract_job_skills,
@@ -62,7 +62,7 @@ with tab1:
 
         uploaded_file = st.file_uploader(
             "Choose Resume",
-            type=["pdf"]
+            type=["pdf","docx","txt"]
         )
 
         if uploaded_file is not None:
@@ -73,7 +73,7 @@ with tab1:
 
                 st.session_state.resume_data = resume_data
                 uploaded_file.seek(0)
-                resume_text = extract_text_from_pdf(uploaded_file)
+                resume_text = extract_text_from_file(uploaded_file)
                 st.session_state.resume_text = resume_text
             st.success("Resume Parsed Successfully")
             

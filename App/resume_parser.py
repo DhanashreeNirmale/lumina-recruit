@@ -1,8 +1,14 @@
+import os
 import re
+import json
+import spacy
 import fitz
 
+from pypdf import PdfReader
 from docx import Document
-import json
+from spacy.matcher import PhraseMatcher
+
+from constants import SKILLS, DEGREE_PATTERNS, SECTION_ALIASES
 
 from constants import SKILLS, DEGREE_PATTERNS, SECTION_ALIASES
 
@@ -444,3 +450,72 @@ def parse_resume(file_input):
     }
 
     return data
+
+
+def get_resume_path(folder="Data"):
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    folder_path = os.path.join(base_dir, folder)
+
+    if not os.path.exists(folder_path):
+        return None
+
+    for file in os.listdir(folder_path):
+        if file.lower().endswith(".pdf"):
+            return os.path.join(folder_path, file)
+
+    return None
+
+
+if __name__ == "__main__":
+
+    resume_path = get_resume_path()
+
+    if resume_path is None:
+        print("No Resume Found")
+
+    else:
+        candidate = parse_resume(resume_path)
+
+        print("\n========== PARSED RESUME ==========\n")
+
+        for key, value in candidate.items():
+            print(f"{key.upper()} : {value}")
+            
+def extract_text_from_docx(docx_input):
+    """Extract text from DOCX (Word) file."""
+    doc = Document(docx_input)
+
+    text = ""
+
+    for para in doc.paragraphs:
+        if para.text.strip():
+            text += para.text + "\n"
+
+    return text
+
+
+def extract_text_from_txt(txt_input):
+    """Extract text from TXT file"""
+    try:
+        return txt_input.getvalue().decode('utf-8')
+    except Exception as e:
+        return f"Error extracting TXT: {str(e)}"
+
+
+def extract_text_from_file(file_input):
+    """Extract text from any file format (PDF, DOCX, TXT)."""
+
+    filename = file_input.name.lower()
+
+    if filename.endswith(".pdf"):
+        return extract_text_from_pdf(file_input)
+
+    elif filename.endswith(".docx"):
+        return extract_text_from_docx(file_input)
+
+    elif filename.endswith(".txt"):
+        return extract_text_from_txt(file_input)
+
+    else:
+        return "Error: Unsupported file format. Please use PDF, DOCX, or TXT."
