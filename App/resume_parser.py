@@ -10,7 +10,6 @@ from spacy.matcher import PhraseMatcher
 
 from constants import SKILLS, DEGREE_PATTERNS, SECTION_ALIASES
 
-from constants import SKILLS, DEGREE_PATTERNS, SECTION_ALIASES
 
 
 # def extract_text_from_pdf(pdf_input):
