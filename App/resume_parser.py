@@ -3,11 +3,14 @@ import re
 import json
 import spacy
 import fitz
-
+import io
+import zipfile
+import xml.etree.ElementTree as ET
 from pypdf import PdfReader
 from docx import Document
 from spacy.matcher import PhraseMatcher
-
+from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI
 from constants import SKILLS, DEGREE_PATTERNS, SECTION_ALIASES
 
 
@@ -26,6 +29,12 @@ from constants import SKILLS, DEGREE_PATTERNS, SECTION_ALIASES
         
 #     document.close()
 #     return text
+load_dotenv()
+
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    temperature=0
+)
 
 def extract_text_from_pdf(pdf_input):
     pdf_input.seek(0)
@@ -51,16 +60,145 @@ def extract_text_from_pdf(pdf_input):
 
 
 def extract_text_from_docx(docx_input):
-    doc = Document(docx_input)
 
-    text = []
+    # Reset file position
+    if hasattr(docx_input, "seek"):
+        docx_input.seek(0)
 
-    for paragraph in doc.paragraphs:
-        if paragraph.text.strip():
-            text.append(paragraph.text.strip())
+    # Read DOCX into memory
+    file_bytes = docx_input.read()
 
-    return "\n".join(text)
+    # -------------------------------
+    # 1. Normal paragraphs + tables
+    # -------------------------------
+    document = Document(io.BytesIO(file_bytes))
 
+    text_parts = []
+
+    # Normal paragraphs
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
+
+        if text:
+            text_parts.append(text)
+
+    # Tables
+    for table in document.tables:
+
+        for row in table.rows:
+
+            row_text = []
+
+            for cell in row.cells:
+
+                cell_text = cell.text.strip()
+
+                if cell_text:
+                    row_text.append(cell_text)
+
+            if row_text:
+                text_parts.append(" | ".join(row_text))
+
+    # -------------------------------
+    # 2. Extract text from headers,
+    #    footers and text boxes
+    # -------------------------------
+
+    namespaces = {
+        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    }
+
+    try:
+
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as docx_zip:
+
+            # XML files that can contain resume text
+            xml_files = [
+                name for name in docx_zip.namelist()
+                if (
+                    name == "word/document.xml"
+                    or name.startswith("word/header")
+                    or name.startswith("word/footer")
+                    or name == "word/footnotes.xml"
+                    or name == "word/endnotes.xml"
+                )
+            ]
+
+            for xml_file in xml_files:
+
+                xml_data = docx_zip.read(xml_file)
+
+                root = ET.fromstring(xml_data)
+
+                # Text inside text boxes
+                for textbox in root.findall(
+                    ".//w:txbxContent",
+                    namespaces
+                ):
+
+                    textbox_text = []
+
+                    for node in textbox.findall(
+                        ".//w:t",
+                        namespaces
+                    ):
+
+                        if node.text:
+                            textbox_text.append(node.text)
+
+                    if textbox_text:
+
+                        text = " ".join(textbox_text).strip()
+
+                        if text:
+                            text_parts.append(text)
+
+                # Header/footer text
+                if (
+                    xml_file.startswith("word/header")
+                    or xml_file.startswith("word/footer")
+                ):
+
+                    header_footer_text = []
+
+                    for node in root.findall(
+                        ".//w:t",
+                        namespaces
+                    ):
+
+                        if node.text:
+                            header_footer_text.append(node.text)
+
+                    if header_footer_text:
+
+                        text = " ".join(header_footer_text).strip()
+
+                        if text:
+                            text_parts.append(text)
+
+    except Exception as e:
+
+        print("DOCX XML extraction warning:", e)
+
+    # -------------------------------
+    # 3. Remove duplicate lines
+    # -------------------------------
+
+    final_text = []
+
+    seen = set()
+
+    for text in text_parts:
+
+        text = re.sub(r"\s+", " ", text).strip()
+
+        if text and text.lower() not in seen:
+
+            final_text.append(text)
+
+            seen.add(text.lower())
+
+    return "\n".join(final_text)
 
 def extract_text_from_txt(txt_input):
     txt_input.seek(0)
@@ -92,6 +230,65 @@ def clean_text(text):
 
     return text.strip()
 
+def parse_resume_with_gemini(text):
+    
+    prompt = f"""
+You are an expert resume parser.
+
+Analyze the resume and extract candidate information.
+
+Return ONLY valid JSON.
+
+Use exactly this structure:
+
+{{
+    "name": null,
+    "email": null,
+    "phone": null,
+    "college": null,
+    "education": [],
+    "experience": null,
+    "skills": [],
+    "projects": [],
+    "hobbies": []
+}}
+
+IMPORTANT RULES:
+
+1. Do not invent information.
+2. Extract only information actually present in the resume.
+3. "education" MUST be a list of strings.
+4. "skills" MUST be a list of strings.
+5. "projects" MUST be a list of strings.
+6. "hobbies" MUST be a list of strings.
+7. "experience" MUST be a single string.
+8. "college" MUST be a single string.
+9. If information is missing, use null, [] or "Fresher".
+10. Return valid JSON only.
+
+RESUME:
+
+{text}
+"""
+
+    response = llm.invoke(prompt)
+
+    result = response.content.strip()
+
+    # Remove markdown code fences if Gemini returns them
+    if result.startswith("```"):
+        result = result.replace("```json", "")
+        result = result.replace("```", "")
+        result = result.strip()
+
+    try:
+        return json.loads(result)
+
+    except json.JSONDecodeError:
+        return {
+            "error": "Gemini returned invalid JSON",
+            "raw_response": result
+        }
 
 def get_lines(text):
     return [line.strip() for line in text.splitlines() if line.strip()]
@@ -432,21 +629,14 @@ def extract_hobbies_interests(text):
 
 def parse_resume(file_input):
 
+    # 1. Extract text from PDF/DOCX/TXT
     text = extract_text_from_file(file_input)
 
+    # 2. Clean extracted text
     text = clean_text(text)
 
-    data = {
-        "name": extract_name(text),
-        "email": extract_email(text),
-        "phone": extract_phone(text),
-        "college": extract_college(text),
-        "education": extract_education(text),
-        "experience": extract_experience(text),
-        "skills": extract_skills(text),
-        "projects": extract_projects(text),
-        "hobbies": extract_hobbies_interests(text)
-    }
+    # 3. Send resume text to Gemini
+    data = parse_resume_with_gemini(text)
 
     return data
 
@@ -481,18 +671,6 @@ if __name__ == "__main__":
         for key, value in candidate.items():
             print(f"{key.upper()} : {value}")
             
-def extract_text_from_docx(docx_input):
-    """Extract text from DOCX (Word) file."""
-    doc = Document(docx_input)
-
-    text = ""
-
-    for para in doc.paragraphs:
-        if para.text.strip():
-            text += para.text + "\n"
-
-    return text
-
 
 def extract_text_from_txt(txt_input):
     """Extract text from TXT file"""
