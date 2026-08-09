@@ -77,23 +77,22 @@ with tab1:
                 st.session_state.resume_text = resume_text
             st.success("Resume Parsed Successfully")
             
-            
 
             st.markdown("### Candidate Information")
 
-            st.write(f"**👤 Name:** {resume_data['name'] or 'Not Found'}")
+            st.write(f" Name: {resume_data['name'] or 'Not Found'}")
 
-            st.write(f"**📧 Email:** {resume_data['email'] or 'Not Found'}")
+            st.write(f"Email: {resume_data['email'] or 'Not Found'}")
 
-            st.write(f"**📱 Phone:** {resume_data['phone'] or 'Not Found'}")
+            st.write(f" Phone: {resume_data['phone'] or 'Not Found'}")
 
             education = ", ".join(resume_data["education"]) if resume_data["education"] else "Not Found"
 
-            st.write(f"**🎓 Education:** {education}")
+            st.write(f"Education: {education}")
 
-            st.write(f"**🏫 College:** {resume_data['college'] or 'Not Found'}")
+            st.write(f"College: {resume_data['college'] or 'Not Found'}")
 
-            st.write(f"**💼 Experience:** {resume_data['experience']}")
+            # st.write(f"Experience: {resume_data['experience']}")
 
             if resume_data["skills"]:
 
@@ -107,7 +106,7 @@ with tab1:
 
             if resume_data["projects"]:
 
-                st.write("### 📂 Projects")
+                st.write("###Projects")
 
                 for project in resume_data["projects"]:
 

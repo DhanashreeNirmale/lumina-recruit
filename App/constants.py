@@ -1,3 +1,4 @@
+
 PROGRAMMING_LANGUAGES = [
     "Python",
     "Java",
@@ -9,8 +10,15 @@ PROGRAMMING_LANGUAGES = [
     "PHP",
     "Ruby",
     "Go",
-    "Rust"
+    "Rust",
+    "Swift",
+    "Kotlin",
+    "Scala",
+    "R",
+    "MATLAB",
+    "Perl",
 ]
+
 
 FRONTEND_SKILLS = [
     "HTML",
@@ -18,17 +26,26 @@ FRONTEND_SKILLS = [
     "Bootstrap",
     "Tailwind CSS",
     "React",
+    "React.js",
     "Angular",
-    "Vue.js"
+    "Vue.js",
+    "Next.js",
+    "Nuxt.js",
+    "Svelte",
 ]
+
 
 BACKEND_SKILLS = [
     "Node.js",
     "Express",
+    "Express.js",
     "Django",
     "Flask",
-    "FastAPI"
+    "FastAPI",
+    "Spring",
+    "ASP.NET",
 ]
+
 
 DATABASES = [
     "SQL",
@@ -38,38 +55,62 @@ DATABASES = [
     "Oracle",
     "SQLite",
     "Redis",
-    "Firebase"
+    "Cassandra",
+    "Firebase",
+    "DynamoDB",
 ]
+
 
 CLOUD_DEVOPS = [
     "AWS",
     "Azure",
     "Google Cloud Platform",
+    "GCP",
     "Docker",
     "Kubernetes",
     "Jenkins",
     "GitHub Actions",
     "GitLab CI/CD",
-    "CI/CD"
+    "CI/CD",
+    "Terraform",
+    "Ansible",
+    "Git",
+    "GitHub",
+    "GitLab",
 ]
 
+
 AI_ML = [
+    "Artificial Intelligence",
     "Machine Learning",
     "Deep Learning",
-    "Artificial Intelligence",
     "Data Science",
+    "Natural Language Processing",
+    "NLP",
+    "Computer Vision",
     "TensorFlow",
     "PyTorch",
+    "Keras",
     "Scikit-learn",
+    "sklearn",
     "Pandas",
     "NumPy",
-    "Matplotlib"
+    "Matplotlib",
+    "Seaborn",
+    "Plotly",
+    "OpenCV",
+    "YOLO",
+    "YOLOv8",
+    "LangChain",
+    "LangGraph",
 ]
+
 
 TOOLS = [
     "Git",
     "GitHub",
     "GitLab",
+    "Bitbucket",
     "Postman",
     "VS Code",
     "Linux",
@@ -79,8 +120,11 @@ TOOLS = [
     "Excel",
     "REST API",
     "GraphQL",
-    "Figma"
+    "Figma",
+    "Jira",
+    "Confluence",
 ]
+
 
 SOFT_SKILLS = [
     "Problem Solving",
@@ -89,34 +133,11 @@ SOFT_SKILLS = [
     "Teamwork",
     "Critical Thinking",
     "Time Management",
+    "Adaptability",
     "Agile",
-    "Scrum"
+    "Scrum",
 ]
 
-EDUCATION = [
-    "Bachelor of Technology",
-    "Bachelor of Engineering",
-    "Bachelor of Computer Applications",
-    "Bachelor of Science",
-    "Master of Technology",
-    "Master of Computer Applications",
-    "Master of Science",
-    "Master of Business Administration",
-    "Bachelor of Business Administration",
-    "B.Tech",
-    "B.E.",
-    "BE",
-    "M.Tech",
-    "BCA",
-    "MCA",
-    "B.Sc",
-    "M.Sc",
-    "MBA",
-    "BBA",
-    "Diploma",
-    "HSC",
-    "SSC"
-]
 
 SKILLS = (
     PROGRAMMING_LANGUAGES
@@ -128,3 +149,125 @@ SKILLS = (
     + TOOLS
     + SOFT_SKILLS
 )
+
+# =========================================================
+# EDUCATION / DEGREE PATTERNS
+# =========================================================
+
+DEGREE_PATTERNS = [
+    "B.Tech",
+    "BTech",
+    "B.E",
+    "BE",
+    "Bachelor of Technology",
+    "Bachelor of Engineering",
+
+    "M.Tech",
+    "MTech",
+    "M.E",
+    "ME",
+    "Master of Technology",
+    "Master of Engineering",
+
+    "BCA",
+    "MCA",
+    "B.Sc",
+    "BSc",
+    "M.Sc",
+    "MSc",
+
+    "BBA",
+    "MBA",
+
+    "B.A",
+    "BA",
+    "M.A",
+    "MA",
+
+    "B.Com",
+    "BCom",
+
+    "PhD",
+    "Diploma",
+]
+
+# =========================================================
+# RESUME SECTION ALIASES
+# =========================================================
+
+SECTION_ALIASES = {
+    "summary": [
+        "summary",
+        "profile",
+        "professional summary",
+        "objective",
+        "about",
+    ],
+
+    "education": [
+        "education",
+        "educational qualification",
+        "academic",
+        "qualifications",
+    ],
+
+    "experience": [
+        "experience",
+        "work experience",
+        "professional experience",
+        "employment",
+        "work history",
+    ],
+
+    "projects": [
+    "projects",
+    "project experience",
+    "project",
+    "academic projects",
+    "key projects",
+    ],
+
+    "skills": [
+        "skills",
+        "technical skills",
+        "technologies",
+        "competencies",
+        "expertise",
+    ],
+
+    "certifications": [
+    "certifications",
+    "certification",
+    "certifications and training",
+    "certificates",
+    "training",
+    "courses",
+    ],
+
+    "languages": [
+        "languages",
+        "language",
+    ],
+
+    "hobbies": [
+        "hobbies",
+        "interests",
+        "personal interests",
+        "activities",
+    ],
+    "positions of responsibility": [
+        "positions of responsibility",
+        "position of responsibility",
+        "leadership",
+        "leadership experience",
+        "extra curricular",
+        "extracurricular activities",
+    ],
+
+    "links": [
+        "linkedin",
+        "links",
+        "social",
+        "profiles",
+    ],
+}
