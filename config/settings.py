@@ -27,17 +27,14 @@ load_dotenv(
 # GEMINI CONFIGURATION
 # ============================================================
 
-# API key is loaded from .env
 GEMINI_API_KEY = os.getenv(
     "GEMINI_API_KEY",
     ""
 ).strip()
 
 
-# IMPORTANT:
-# Keep the model fixed here so an old GEMINI_MODEL value
-# in .env cannot accidentally select gemini-2.0-flash.
-GEMINI_MODEL = "gemini-2.5-flash"
+# Current stable Gemini model
+GEMINI_MODEL = "gemini-3.6-flash"
 
 
 # ============================================================
@@ -55,10 +52,13 @@ DATABASE_PATH = (
 # JUDGE0 CONFIGURATION
 # ============================================================
 
-JUDGE0_URL = os.getenv(
-    "JUDGE0_URL",
+JUDGE0_API_URL = os.getenv(
+    "JUDGE0_API_URL",
     "http://localhost:2358"
 ).strip()
+
+# Backward compatibility
+JUDGE0_URL = JUDGE0_API_URL
 
 
 # ============================================================
@@ -69,18 +69,16 @@ DEBUG = (
     os.getenv(
         "DEBUG",
         "False"
-    ).lower()
-    == "true"
+    ).lower() == "true"
 )
 
 
 # ============================================================
-# GEMINI CONFIGURATION CHECK
+# GEMINI STATUS
 # ============================================================
 
 def is_gemini_configured():
     """
-    Returns True if GEMINI_API_KEY exists.
+    Check whether Gemini API key is configured.
     """
-
     return bool(GEMINI_API_KEY)

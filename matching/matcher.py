@@ -1,379 +1,413 @@
-<<<<<<< HEAD
-import json
-import re
+"""
+Candidate matching and scoring utilities.
+
+This module compares a candidate's resume information
+with the requirements extracted from a job description.
+"""
 
 
-def _list(value):
+# ============================================================
+# TEXT NORMALIZATION
+# ============================================================
 
-    if isinstance(
-        value,
-        list
-    ):
+def _normalize(value):
+    """Convert a value into normalized lowercase text."""
 
+    if value is None:
+        return ""
+
+    return str(value).strip().lower()
+
+
+# ============================================================
+# LIST NORMALIZATION
+# ============================================================
+
+def _to_list(value):
+    """Convert a value into a clean list of strings."""
+
+    if value is None:
+        return []
+
+    if isinstance(value, list):
         return [
-            str(x).lower().strip()
-            for x in value
-            if str(x).strip()
+            str(item).strip()
+            for item in value
+            if str(item).strip()
         ]
+
+    if isinstance(value, str):
+        return [
+            item.strip()
+            for item in value.split(",")
+            if item.strip()
+        ]
+
+    return [str(value).strip()]
+
+
+# ============================================================
+# SKILL MATCHING
+# ============================================================
+
+def match_skills(
+    candidate_skills,
+    required_skills,
+    preferred_skills=None
+):
+    """
+    Compare candidate skills with job requirements.
+
+    Returns:
+        dict containing matched and missing skills.
+    """
+
+    candidate = {
+        _normalize(skill)
+        for skill in _to_list(candidate_skills)
+    }
+
+    required = _to_list(required_skills)
+
+    preferred = _to_list(preferred_skills)
+
+    matched_required = []
+    missing_required = []
+
+    for skill in required:
+
+        normalized = _normalize(skill)
+
+        if normalized in candidate:
+            matched_required.append(skill)
+        else:
+            missing_required.append(skill)
+
+    matched_preferred = []
+
+    for skill in preferred:
+
+        normalized = _normalize(skill)
+
+        if normalized in candidate:
+            matched_preferred.append(skill)
+
+    return {
+        "matched_required": matched_required,
+        "missing_required": missing_required,
+        "matched_preferred": matched_preferred
+    }
+
+
+# ============================================================
+# SKILL SCORE
+# ============================================================
+
+def calculate_skill_score(
+    candidate_skills,
+    required_skills,
+    preferred_skills=None
+):
+    """
+    Calculate skill compatibility score.
+
+    Required skills have higher importance than
+    preferred skills.
+    """
+
+    required = _to_list(required_skills)
+
+    preferred = _to_list(preferred_skills)
+
+    candidate = {
+        _normalize(skill)
+        for skill in _to_list(candidate_skills)
+    }
+
+    # --------------------------------------------------------
+    # Required skills
+    # --------------------------------------------------------
+
+    if required:
+
+        required_matches = sum(
+            1
+            for skill in required
+            if _normalize(skill) in candidate
+        )
+
+        required_score = (
+            required_matches / len(required)
+        ) * 80
+
+    else:
+
+        required_score = 80
+
+    # --------------------------------------------------------
+    # Preferred skills
+    # --------------------------------------------------------
+
+    if preferred:
+
+        preferred_matches = sum(
+            1
+            for skill in preferred
+            if _normalize(skill) in candidate
+        )
+
+        preferred_score = (
+            preferred_matches / len(preferred)
+        ) * 20
+
+    else:
+
+        preferred_score = 20
+
+    return round(
+        required_score + preferred_score,
+        2
+    )
+
+
+# ============================================================
+# EXPERIENCE SCORE
+# ============================================================
+
+def calculate_experience_score(
+    candidate_experience,
+    required_experience
+):
+    """
+    Calculate experience compatibility.
+
+    This function handles simple numeric experience
+    values such as:
+        2
+        2.5
+        "2 years"
+        "3-5 years"
+    """
 
     try:
 
-        parsed = json.loads(
-            value or "[]"
+        candidate_years = float(
+            str(candidate_experience)
+            .replace("years", "")
+            .replace("year", "")
+            .strip()
         )
 
-        return [
-            str(x).lower().strip()
-            for x in parsed
-            if str(x).strip()
-        ]
+    except (ValueError, TypeError):
 
-    except (
-        TypeError,
-        json.JSONDecodeError
-    ):
+        return 50.0
 
-        return []
+    try:
 
+        required_text = _normalize(
+            required_experience
+        )
 
-def _contains(
-    skill,
-    candidate_skill
-):
+        # Extract the first number.
+        import re
 
-    return (
-        skill == candidate_skill
-        or skill in candidate_skill
-        or candidate_skill in skill
+        match = re.search(
+            r"\d+(?:\.\d+)?",
+            required_text
+        )
+
+        if not match:
+            return 50.0
+
+        required_years = float(
+            match.group()
+        )
+
+    except (ValueError, TypeError):
+
+        return 50.0
+
+    if required_years <= 0:
+        return 100.0
+
+    if candidate_years >= required_years:
+        return 100.0
+
+    score = (
+        candidate_years / required_years
+    ) * 100
+
+    return round(
+        max(0.0, min(100.0, score)),
+        2
     )
 
 
-def _extract_days(text):
-
-    match = re.search(
-        r"(\d+)",
-        str(text or "")
-    )
-
-    return (
-        int(match.group(1))
-        if match
-        else None
-    )
-
+# ============================================================
+# OVERALL CANDIDATE SCORE
+# ============================================================
 
 def score_candidate(
     candidate,
     job
 ):
+    """
+    Calculate an overall candidate-job compatibility score.
 
-    required = _list(
-        job.get(
-            "required_skills"
-        )
-    )
+    Parameters
+    ----------
+    candidate : dict
+        Candidate information.
 
-    preferred = _list(
-        job.get(
-            "preferred_skills"
-        )
-    )
+    job : dict
+        Job requirement information.
 
-    candidate_skills = _list(
+    Returns
+    -------
+    dict
+        Detailed matching result.
+    """
+
+    if not isinstance(candidate, dict):
+        candidate = {}
+
+    if not isinstance(job, dict):
+        job = {}
+
+    # --------------------------------------------------------
+    # Candidate skills
+    # --------------------------------------------------------
+
+    candidate_skills = candidate.get(
+        "skills",
         candidate.get(
-            "skills"
+            "technical_skills",
+            []
         )
     )
-
-
-    required_hits = sum(
-
-        any(
-            _contains(
-                skill,
-                cs
-            )
-
-            for cs in candidate_skills
-        )
-
-        for skill in required
-    )
-
-
-    preferred_hits = sum(
-
-        any(
-            _contains(
-                skill,
-                cs
-            )
-
-            for cs in candidate_skills
-        )
-
-        for skill in preferred
-    )
-
-
-    required_score = (
-
-        55
-        * required_hits
-        / max(
-            1,
-            len(required)
-        )
-    )
-
-
-    preferred_score = (
-
-        10
-        * preferred_hits
-        / max(
-            1,
-            len(preferred)
-        )
-    )
-
-
-    education = " ".join(
-        _list(
-            candidate.get(
-                "education"
-            )
-        )
-    )
-
-    education_score = (
-        10
-        if education
-        else 0
-    )
-
 
     # --------------------------------------------------------
-    # NOTICE PERIOD
+    # Job skills
     # --------------------------------------------------------
 
-    notice_score = 0
-
-    job_notice = _extract_days(
-        job.get(
-            "notice_period"
-        )
+    required_skills = job.get(
+        "required_skills",
+        []
     )
 
-    candidate_notice = _extract_days(
-        candidate.get(
-            "notice_period"
-        )
+    preferred_skills = job.get(
+        "preferred_skills",
+        []
     )
 
-    if (
-        job_notice is None
-        or candidate_notice is None
-        or candidate_notice <= job_notice
-    ):
-
-        notice_score = 10
-
-
     # --------------------------------------------------------
-    # SALARY
+    # Skill matching
     # --------------------------------------------------------
 
-    salary_score = 0
-
-    try:
-
-        expected = float(
-            candidate.get(
-                "expected_salary"
-            ) or 0
-        )
-
-        maximum = float(
-            job.get(
-                "salary_max"
-            ) or 0
-        )
-
-        if (
-            expected == 0
-            or maximum == 0
-            or expected <= maximum
-        ):
-
-            salary_score = 10
-
-    except (
-        TypeError,
-        ValueError
-    ):
-
-        salary_score = 0
-
-
-    # --------------------------------------------------------
-    # LOCATION / RELOCATION
-    # --------------------------------------------------------
-
-    location_score = 0
-
-    job_location = str(
-        job.get(
-            "location",
-            ""
-        )
-    ).lower()
-
-    candidate_location = str(
-        candidate.get(
-            "location",
-            ""
-        )
-    ).lower()
-
-    relocation = str(
-        candidate.get(
-            "relocation_willingness",
-            ""
-        )
-    ).lower()
-
-
-    if (
-        not job_location
-        or not candidate_location
-    ):
-
-        location_score = 0
-
-    elif (
-        job_location in candidate_location
-        or candidate_location in job_location
-    ):
-
-        location_score = 5
-
-    elif (
-        "yes" in relocation
-        or "willing" in relocation
-    ):
-
-        location_score = 5
-
-
-    total = (
-
-        required_score
-        + preferred_score
-        + education_score
-        + notice_score
-        + salary_score
-        + location_score
+    skill_match = match_skills(
+        candidate_skills,
+        required_skills,
+        preferred_skills
     )
-
-
-    return round(
-        min(
-            100.0,
-            total
-        ),
-        2
-    )
-=======
-from matching.scorer import (
-    calculate_skill_score,
-    calculate_experience_score,
-    calculate_education_score,
-    calculate_notice_score,
-    calculate_salary_score,
-    calculate_location_score,
-    calculate_overall_score,
-)
-
-
-def match_candidate(candidate, job):
 
     skill_score = calculate_skill_score(
-        candidate.get("skills", []),
-        job.get("required_skills", [])
+        candidate_skills,
+        required_skills,
+        preferred_skills
+    )
+
+    # --------------------------------------------------------
+    # Experience
+    # --------------------------------------------------------
+
+    candidate_experience = candidate.get(
+        "experience",
+        candidate.get(
+            "years_of_experience",
+            0
+        )
+    )
+
+    required_experience = job.get(
+        "experience",
+        ""
     )
 
     experience_score = calculate_experience_score(
-        candidate.get("experience", 0),
-        job.get("experience_required", 0)
+        candidate_experience,
+        required_experience
     )
 
-    education_score = calculate_education_score(
-        candidate.get("education", ""),
-        job.get("education_required", "")
+    # --------------------------------------------------------
+    # Overall score
+    #
+    # Skills = 80%
+    # Experience = 20%
+    # --------------------------------------------------------
+
+    overall_score = (
+        skill_score * 0.80
+        +
+        experience_score * 0.20
     )
 
-    notice_score = calculate_notice_score(
-        candidate.get("notice_period"),
-        job.get("max_notice_period")
+    overall_score = round(
+        overall_score,
+        2
     )
 
-    salary_score = calculate_salary_score(
-        candidate.get("expected_salary"),
-        job.get("min_salary"),
-        job.get("max_salary")
-    )
+    # --------------------------------------------------------
+    # Recommendation
+    # --------------------------------------------------------
 
-    location_score = calculate_location_score(
-        candidate.get("location", ""),
-        job.get("location", ""),
-        candidate.get("relocation")
-    )
+    if overall_score >= 80:
 
-    overall = calculate_overall_score(
-        skill_score,
-        experience_score,
-        education_score,
-        notice_score,
-        salary_score,
-        location_score
-    )
+        recommendation = "Highly Recommended"
 
-    required_skills = set(
-        skill.lower()
-        for skill in job.get("required_skills", [])
-    )
+    elif overall_score >= 65:
 
-    candidate_skills = set(
-        skill.lower()
-        for skill in candidate.get("skills", [])
-    )
+        recommendation = "Recommended"
 
-    missing_skills = sorted(
-        required_skills - candidate_skills
-    )
+    elif overall_score >= 50:
 
-    matched_skills = sorted(
-        required_skills.intersection(candidate_skills)
-    )
+        recommendation = "Consider"
 
-    if overall >= 80:
-        recommendation = "Shortlisted"
-    elif overall >= 65:
-        recommendation = "Review"
     else:
-        recommendation = "Not Shortlisted"
+
+        recommendation = "Not Recommended"
+
+    # --------------------------------------------------------
+    # Final result
+    # --------------------------------------------------------
 
     return {
-        "skill_score": round(skill_score, 2),
-        "experience_score": round(experience_score, 2),
-        "education_score": round(education_score, 2),
-        "notice_score": round(notice_score, 2),
-        "salary_score": round(salary_score, 2),
-        "location_score": round(location_score, 2),
-        "overall_score": overall,
-        "matched_skills": matched_skills,
-        "missing_skills": missing_skills,
-        "recommendation": recommendation,
+        "score": overall_score,
+
+        "skill_score": round(
+            skill_score,
+            2
+        ),
+
+        "experience_score": round(
+            experience_score,
+            2
+        ),
+
+        "matched_required_skills":
+            skill_match[
+                "matched_required"
+            ],
+
+        "missing_required_skills":
+            skill_match[
+                "missing_required"
+            ],
+
+        "matched_preferred_skills":
+            skill_match[
+                "matched_preferred"
+            ],
+
+        "recommendation":
+            recommendation
     }
->>>>>>> f1fae11c75574876b6ccf36da7b7f706c3e1d458

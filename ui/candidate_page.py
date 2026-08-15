@@ -17,60 +17,444 @@ from database.models import (
 )
 
 from matching.matcher import score_candidate
-
 from resume_parser.parser import extract_text
 
 
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
 def _decode(value):
+    """
+    Convert JSON string fields from the database into Python lists.
+    """
+
+    try:
+        parsed = json.loads(value or "[]")
+
+        if isinstance(parsed, list):
+            return parsed
+
+        return []
+
+    except (TypeError, json.JSONDecodeError):
+        return []
+
+
+def _display_value(value):
+    """
+    Convert different data types into a readable string
+    for the Streamlit UI.
+    """
+
+    if value is None:
+        return "Not provided"
+
+    if isinstance(value, list):
+
+        if not value:
+            return "Not provided"
+
+        return ", ".join(
+            str(item)
+            for item in value
+        )
+
+    if isinstance(value, dict):
+
+        return json.dumps(
+            value,
+            indent=2,
+            ensure_ascii=False,
+        )
+
+    text = str(value).strip()
+
+    if not text:
+        return "Not provided"
+
+    return text
+
+
+def display_parsed_resume(data):
+    """
+    Display the information extracted from the resume.
+    """
+
+    st.markdown("---")
+
+    st.subheader("📄 Parsed Resume Information")
+
+    # ========================================================
+    # BASIC INFORMATION
+    # ========================================================
+
+    st.markdown("### 👤 Personal Information")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.write(
+            f"**Name:** {_display_value(data.get('name'))}"
+        )
+
+        st.write(
+            f"**Email:** {_display_value(data.get('email'))}"
+        )
+
+        st.write(
+            f"**Phone:** {_display_value(data.get('phone'))}"
+        )
+
+    with col2:
+
+        st.write(
+            f"**Location:** {_display_value(data.get('location'))}"
+        )
+
+        st.write(
+            f"**Total Experience:** "
+            f"{_display_value(data.get('experience'))}"
+        )
+
+        st.write(
+            f"**Notice Period:** "
+            f"{_display_value(data.get('notice_period'))}"
+        )
+
+    # ========================================================
+    # SKILLS
+    # ========================================================
+
+    st.markdown("### 🛠️ Skills")
+
+    skills = data.get("skills", [])
+
+    if isinstance(skills, str):
+
+        try:
+            skills = json.loads(skills)
+        except json.JSONDecodeError:
+
+            skills = [
+                skill.strip()
+                for skill in skills.split(",")
+                if skill.strip()
+            ]
+
+    if skills:
+
+        st.write(
+            ", ".join(
+                str(skill)
+                for skill in skills
+            )
+        )
+
+    else:
+
+        st.write("Not provided")
+
+    # ========================================================
+    # EDUCATION
+    # ========================================================
+
+    st.markdown("### 🎓 Education")
+
+    education = data.get(
+        "education",
+        []
+    )
+
+    if isinstance(education, list):
+
+        if education:
+
+            for item in education:
+
+                if isinstance(item, dict):
+
+                    st.write(
+                        f"- {_display_value(item)}"
+                    )
+
+                else:
+
+                    st.write(
+                        f"- {item}"
+                    )
+
+        else:
+
+            st.write("Not provided")
+
+    elif education:
+
+        st.write(
+            _display_value(education)
+        )
+
+    else:
+
+        st.write("Not provided")
+
+    # ========================================================
+    # EXPERIENCE DETAILS
+    # ========================================================
+
+    st.markdown("### 💼 Experience Details")
+
+    experience_details = data.get(
+        "experience_details",
+        data.get(
+            "work_experience",
+            data.get(
+                "experience_summary",
+                None
+            )
+        )
+    )
 
     if isinstance(
-        value,
+        experience_details,
         list
     ):
 
-        return value
+        if experience_details:
 
-    try:
+            for item in experience_details:
 
-        parsed = json.loads(
-            value or "[]"
+                if isinstance(item, dict):
+
+                    st.write(
+                        f"- {_display_value(item)}"
+                    )
+
+                else:
+
+                    st.write(
+                        f"- {item}"
+                    )
+
+        else:
+
+            st.write("Not provided")
+
+    elif experience_details:
+
+        st.write(
+            _display_value(
+                experience_details
+            )
         )
 
-        if isinstance(
-            parsed,
-            list
-        ):
+    else:
 
-            return parsed
+        st.write("Not provided")
 
-    except (
-        TypeError,
-        json.JSONDecodeError
+    # ========================================================
+    # PROJECTS
+    # ========================================================
+
+    st.markdown("### 🚀 Projects")
+
+    projects = data.get(
+        "projects",
+        []
+    )
+
+    if isinstance(projects, list):
+
+        if projects:
+
+            for project in projects:
+
+                if isinstance(project, dict):
+
+                    st.write(
+                        f"- {_display_value(project)}"
+                    )
+
+                else:
+
+                    st.write(
+                        f"- {project}"
+                    )
+
+        else:
+
+            st.write("Not provided")
+
+    elif projects:
+
+        st.write(
+            _display_value(projects)
+        )
+
+    else:
+
+        st.write("Not provided")
+
+    # ========================================================
+    # CERTIFICATIONS
+    # ========================================================
+
+    st.markdown("### 🏆 Certifications")
+
+    certifications = data.get(
+        "certifications",
+        []
+    )
+
+    if isinstance(
+        certifications,
+        list
     ):
 
-        pass
+        if certifications:
 
-    return []
+            for certification in certifications:
 
+                st.write(
+                    f"- {certification}"
+                )
+
+        else:
+
+            st.write("Not provided")
+
+    elif certifications:
+
+        st.write(
+            _display_value(
+                certifications
+            )
+        )
+
+    else:
+
+        st.write("Not provided")
+
+    # ========================================================
+    # SALARY
+    # ========================================================
+
+    st.markdown("### 💰 Salary Information")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.write(
+            f"**Current Salary:** "
+            f"{_display_value(data.get('current_salary'))}"
+        )
+
+    with col2:
+
+        st.write(
+            f"**Expected Salary:** "
+            f"{_display_value(data.get('expected_salary'))}"
+        )
+
+    # ========================================================
+    # RESUME SUMMARY
+    # ========================================================
+
+    st.markdown("### 📝 Resume Summary")
+
+    summary = data.get(
+        "summary",
+        data.get(
+            "profile_summary",
+            data.get(
+                "professional_summary",
+                None
+            )
+        )
+    )
+
+    if summary:
+
+        st.info(
+            _display_value(summary)
+        )
+
+    else:
+
+        st.write("Not provided")
+
+    # ========================================================
+    # OTHER PARSED INFORMATION
+    # ========================================================
+
+    known_fields = {
+        "name",
+        "email",
+        "phone",
+        "location",
+        "experience",
+        "notice_period",
+        "skills",
+        "education",
+        "experience_details",
+        "work_experience",
+        "experience_summary",
+        "projects",
+        "certifications",
+        "current_salary",
+        "expected_salary",
+        "summary",
+        "profile_summary",
+        "professional_summary",
+        "resume_filename",
+        "resume_text",
+    }
+
+    additional_fields = {
+        key: value
+        for key, value in data.items()
+        if key not in known_fields
+    }
+
+    if additional_fields:
+
+        st.markdown(
+            "### 🔎 Additional Parsed Information"
+        )
+
+        for key, value in additional_fields.items():
+
+            readable_key = (
+                key.replace("_", " ")
+                .title()
+            )
+
+            st.write(
+                f"**{readable_key}:** "
+                f"{_display_value(value)}"
+            )
+
+
+# ============================================================
+# CANDIDATE PAGE
+# ============================================================
 
 def show_candidate_page():
 
     st.title("👥 Candidates")
 
-    st.caption(
-        "Resume screening • Candidate pipeline • Interview scheduling"
-    )
-
     upload_tab, pipeline_tab, interview_tab = st.tabs(
         [
-            "📄 Resume Upload",
-            "📊 Pipeline",
-            "📅 Interviews",
+            "Resume Upload",
+            "Pipeline",
+            "Interviews",
         ]
     )
 
     # ========================================================
-    # RESUME UPLOAD
+    # TAB 1 — RESUME UPLOAD
     # ========================================================
 
     with upload_tab:
@@ -84,14 +468,16 @@ def show_candidate_page():
             type=[
                 "pdf",
                 "docx",
-                "txt"
+                "txt",
             ],
             accept_multiple_files=True,
+            key="candidate_resume_uploader",
         )
 
         if st.button(
             "🤖 Parse & Add Resumes",
             type="primary",
+            key="candidate_parse_resumes_button",
         ):
 
             if not files:
@@ -104,19 +490,17 @@ def show_candidate_page():
 
                 success_count = 0
 
-                progress = st.progress(
-                    0
-                )
+                progress = st.progress(0)
 
-                for index, uploaded_file in enumerate(
-                    files
-                ):
+                total_files = len(files)
+
+                for index, uploaded_file in enumerate(files):
 
                     try:
 
-                        # ------------------------------------
-                        # Extract text
-                        # ------------------------------------
+                        # ====================================
+                        # EXTRACT RESUME TEXT
+                        # ====================================
 
                         text = extract_text(
                             uploaded_file
@@ -126,60 +510,97 @@ def show_candidate_page():
 
                             st.warning(
                                 f"{uploaded_file.name}: "
-                                "no text found."
+                                "No readable text found."
                             )
 
                             continue
 
-                        # ------------------------------------
-                        # AI analysis
-                        # ------------------------------------
+                        # ====================================
+                        # AI RESUME ANALYSIS
+                        # ====================================
 
-                        data = ResumeAgent().analyze(
+                        parsed_data = ResumeAgent().analyze(
                             text
                         )
 
-                        data[
+                        # ====================================
+                        # VALIDATE RESULT
+                        # ====================================
+
+                        if not isinstance(
+                            parsed_data,
+                            dict
+                        ):
+
+                            raise ValueError(
+                                "ResumeAgent did not return "
+                                "a valid parsed dictionary."
+                            )
+
+                        # ====================================
+                        # ADD ORIGINAL RESUME INFORMATION
+                        # ====================================
+
+                        parsed_data[
                             "resume_filename"
                         ] = uploaded_file.name
 
-                        data[
+                        parsed_data[
                             "resume_text"
                         ] = text
 
-                        # ------------------------------------
-                        # Save candidate
-                        # ------------------------------------
+                        # ====================================
+                        # SAVE CANDIDATE
+                        # ====================================
 
                         candidate_id = create_candidate(
-                            data
+                            parsed_data
                         )
 
                         success_count += 1
 
+                        # ====================================
+                        # SUCCESS MESSAGE
+                        # ====================================
+
                         st.success(
-                            f"{uploaded_file.name} "
-                            f"→ Candidate #{candidate_id}"
+                            f"✅ {uploaded_file.name} "
+                            f"parsed and added successfully "
+                            f"as Candidate #{candidate_id}"
+                        )
+
+                        # ====================================
+                        # SHOW PARSED INFORMATION
+                        # ====================================
+
+                        display_parsed_resume(
+                            parsed_data
                         )
 
                     except Exception as exc:
 
                         st.error(
-                            f"{uploaded_file.name}: {exc}"
+                            f"❌ {uploaded_file.name}: "
+                            f"{exc}"
                         )
 
-                    progress.progress(
-                        (index + 1)
-                        / len(files)
-                    )
+                    finally:
 
-                st.info(
-                    f"Successfully added "
+                        progress.progress(
+                            (index + 1) / total_files
+                        )
+
+                # ============================================
+                # FINAL MESSAGE
+                # ============================================
+
+                st.success(
+                    f"🎉 Successfully added "
                     f"{success_count} resume(s)."
                 )
 
     # ========================================================
-    # PIPELINE
+    # TAB 2 — CANDIDATE PIPELINE
     # ========================================================
 
     with pipeline_tab:
@@ -196,28 +617,39 @@ def show_candidate_page():
 
         else:
 
+            # =================================================
+            # JOB MATCHING
+            # =================================================
+
             if jobs:
 
+                st.subheader(
+                    "Candidate Matching"
+                )
+
                 job_options = {
-                    f"#{job['id']} — {job['title']}": job
-                    for job in jobs
+                    f"#{j['id']} — {j['title']}": j
+                    for j in jobs
                 }
 
-                selected_label = st.selectbox(
+                selected_job_label = st.selectbox(
                     "Select job for matching",
                     list(
                         job_options.keys()
                     ),
+                    key="candidate_matching_job_selector",
                 )
 
                 selected_job = job_options[
-                    selected_label
+                    selected_job_label
                 ]
 
                 if st.button(
                     "⚡ Calculate Candidate Scores",
-                    type="primary",
+                    key="candidate_calculate_scores_button",
                 ):
+
+                    updated_count = 0
 
                     for candidate in candidates:
 
@@ -228,101 +660,122 @@ def show_candidate_page():
                         candidate_for_score[
                             "skills"
                         ] = _decode(
-                            candidate[
-                                "skills"
-                            ]
+                            candidate.get(
+                                "skills",
+                                "[]"
+                            )
                         )
 
-                        candidate_for_score[
-                            "education"
-                        ] = _decode(
-                            candidate[
-                                "education"
-                            ]
-                        )
-
-                        score = score_candidate(
+                        score_result = score_candidate(
                             candidate_for_score,
-                            selected_job
+                            selected_job,
                         )
 
-                        if score >= 75:
+                        if isinstance(
+                            score_result,
+                            dict
+                        ):
 
-                            status = "Shortlisted"
-
-                        elif score >= 50:
-
-                            status = "Screening"
+                            score = float(
+                                score_result.get(
+                                    "score",
+                                    0
+                                )
+                            )
 
                         else:
 
-                            status = "New"
+                            score = float(
+                                score_result
+                            )
+
+                        if score >= 70:
+
+                            status = "Shortlisted"
+
+                        else:
+
+                            status = "Screening"
 
                         update_candidate_score(
                             candidate["id"],
                             score,
-                            status
+                            status,
                         )
 
+                        updated_count += 1
+
                     st.success(
-                        "Candidate scores updated."
+                        f"Scores updated for "
+                        f"{updated_count} candidate(s)."
                     )
 
-                    st.rerun()
+            # =================================================
+            # CANDIDATE TABLE
+            # =================================================
 
-            # ------------------------------------------------
-            # DISPLAY
-            # ------------------------------------------------
+            st.subheader(
+                "Candidate Pipeline"
+            )
 
             candidates = get_candidates()
 
-            df = pd.DataFrame(
-                candidates
+            if candidates:
+
+                df = pd.DataFrame(
+                    candidates
+                )
+
+                display_cols = [
+                    "id",
+                    "name",
+                    "email",
+                    "score",
+                    "status",
+                    "notice_period",
+                    "expected_salary",
+                    "location",
+                ]
+
+                available_cols = [
+                    column
+                    for column in display_cols
+                    if column in df.columns
+                ]
+
+                if available_cols:
+
+                    st.dataframe(
+                        df[available_cols],
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+            # =================================================
+            # CHANGE CANDIDATE STATUS
+            # =================================================
+
+            st.subheader(
+                "Update Candidate Status"
             )
-
-            display_cols = [
-                "id",
-                "name",
-                "email",
-                "score",
-                "status",
-                "notice_period",
-                "expected_salary",
-                "location",
-            ]
-
-            available_cols = [
-                col
-                for col in display_cols
-                if col in df.columns
-            ]
-
-            st.dataframe(
-                df[available_cols],
-                use_container_width=True,
-                hide_index=True,
-            )
-
-            # ------------------------------------------------
-            # STATUS UPDATE
-            # ------------------------------------------------
 
             candidate_labels = {
-                f"#{candidate['id']} — {candidate['name']}":
-                candidate["id"]
-
-                for candidate in candidates
+                f"#{c['id']} — {c['name']}": c["id"]
+                for c in candidates
             }
 
-            selected_candidate = st.selectbox(
-                "Candidate",
-                list(
-                    candidate_labels.keys()
-                ),
+            selected_candidate_for_status = (
+                st.selectbox(
+                    "Candidate",
+                    list(
+                        candidate_labels.keys()
+                    ),
+                    key="candidate_status_candidate_selector",
+                )
             )
 
-            status = st.selectbox(
-                "New Status",
+            new_status = st.selectbox(
+                "New status",
                 [
                     "New",
                     "Screening",
@@ -331,17 +784,19 @@ def show_candidate_page():
                     "Rejected",
                     "Hired",
                 ],
+                key="candidate_status_selector",
             )
 
             if st.button(
-                "Update Status"
+                "Update Status",
+                key="candidate_update_status_button",
             ):
 
                 update_candidate_status(
                     candidate_labels[
-                        selected_candidate
+                        selected_candidate_for_status
                     ],
-                    status
+                    new_status,
                 )
 
                 st.success(
@@ -349,7 +804,7 @@ def show_candidate_page():
                 )
 
     # ========================================================
-    # INTERVIEWS
+    # TAB 3 — INTERVIEWS
     # ========================================================
 
     with interview_tab:
@@ -361,28 +816,23 @@ def show_candidate_page():
         if not candidates or not jobs:
 
             st.info(
-                "Create at least one job "
-                "and one candidate first."
+                "Create at least one job and "
+                "one candidate first."
             )
 
         else:
 
             st.subheader(
-                "📅 Schedule Interview"
+                "Schedule Interview"
             )
 
+            # =================================================
+            # CANDIDATE SELECTOR
+            # =================================================
+
             candidate_map = {
-                f"#{candidate['id']} — {candidate['name']}":
-                candidate["id"]
-
-                for candidate in candidates
-            }
-
-            job_map = {
-                f"#{job['id']} — {job['title']}":
-                job["id"]
-
-                for job in jobs
+                f"#{c['id']} — {c['name']}": c["id"]
+                for c in candidates
             }
 
             selected_candidate = st.selectbox(
@@ -390,27 +840,49 @@ def show_candidate_page():
                 list(
                     candidate_map.keys()
                 ),
+                key="interview_candidate_selector",
             )
 
-            selected_job = st.selectbox(
+            # =================================================
+            # JOB SELECTOR
+            # =================================================
+
+            job_map = {
+                f"#{j['id']} — {j['title']}": j["id"]
+                for j in jobs
+            }
+
+            selected_interview_job = st.selectbox(
                 "Job",
                 list(
                     job_map.keys()
                 ),
+                key="interview_job_selector",
             )
+
+            # =================================================
+            # DATE
+            # =================================================
 
             interview_date = st.date_input(
-                "Interview Date",
-                value=date.today()
+                "Interview date",
+                value=date.today(),
+                key="interview_date_selector",
             )
 
+            # =================================================
+            # TIME
+            # =================================================
+
             interview_time = st.time_input(
-                "Interview Time",
-                value=time(
-                    10,
-                    0
-                )
+                "Interview time",
+                value=time(10, 0),
+                key="interview_time_selector",
             )
+
+            # =================================================
+            # INTERVIEW MODE
+            # =================================================
 
             mode = st.selectbox(
                 "Mode",
@@ -419,77 +891,73 @@ def show_candidate_page():
                     "In-person",
                     "Phone",
                 ],
+                key="interview_mode_selector",
             )
 
+            # =================================================
+            # NOTES
+            # =================================================
+
             notes = st.text_area(
-                "Notes"
+                "Notes",
+                key="interview_notes",
             )
+
+            # =================================================
+            # SCHEDULE
+            # =================================================
 
             if st.button(
                 "📅 Schedule Interview",
-                type="primary",
+                key="schedule_interview_button",
             ):
 
-                schedule_interview(
-                    candidate_map[
-                        selected_candidate
-                    ],
+                try:
 
-                    job_map[
-                        selected_job
-                    ],
+                    schedule_interview(
+                        candidate_map[
+                            selected_candidate
+                        ],
+                        job_map[
+                            selected_interview_job
+                        ],
+                        str(interview_date),
+                        str(interview_time),
+                        mode,
+                        notes,
+                    )
 
-                    str(
-                        interview_date
-                    ),
+                    st.success(
+                        "Interview scheduled successfully."
+                    )
 
-                    str(
-                        interview_time
-                    ),
+                except Exception as exc:
 
-                    mode,
+                    st.error(
+                        f"Could not schedule interview: {exc}"
+                    )
 
-                    notes,
-                )
-
-                st.success(
-                    "Interview scheduled successfully."
-                )
-
-            # ------------------------------------------------
+            # =================================================
             # COMMUNICATION TEMPLATE
-            # ------------------------------------------------
+            # =================================================
 
             st.subheader(
-                "✉️ Communication Template"
+                "Communication Template"
             )
 
             st.code(
-                """Subject: Interview Invitation
-
-Dear Candidate,
-
-Thank you for your application.
-
-We would like to invite you for an interview
-for the selected role.
-
-Interview details:
-
-Date: [Interview Date]
-Time: [Interview Time]
-Mode: [Online/In-person/Phone]
-
-Please confirm your availability.
-
-Regards,
-Lumina Recruit
-"""
+                "Subject: Interview Invitation\n\n"
+                "Dear Candidate,\n\n"
+                "Thank you for your application. "
+                "We would like to invite you for an "
+                "interview for the selected role.\n\n"
+                "Regards,\n"
+                "Lumina Recruit"
             )
 
-            # ------------------------------------------------
+            # =================================================
             # INTERVIEW LIST
-            # ------------------------------------------------
+            # =================================================
 
             interviews = get_interviews()
 
@@ -499,12 +967,16 @@ Lumina Recruit
                     "Scheduled Interviews"
                 )
 
-                df = pd.DataFrame(
-                    interviews
-                )
-
                 st.dataframe(
-                    df,
+                    pd.DataFrame(
+                        interviews
+                    ),
                     use_container_width=True,
                     hide_index=True,
+                )
+
+            else:
+
+                st.info(
+                    "No interviews scheduled yet."
                 )

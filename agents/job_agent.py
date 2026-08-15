@@ -1,70 +1,58 @@
-<<<<<<< HEAD
 from services.llm_service import GeminiService
 
 
 class JobAgent:
     """
-    Job Requirement Extraction Agent.
+    Job Analysis Agent for Lumina Recruit.
 
-    Responsibility:
-    Convert an unstructured job description
-    into structured recruitment requirements.
+    Responsibilities:
+    1. Accept a raw job description.
+    2. Send it to Gemini through GeminiService.
+    3. Extract structured recruitment requirements.
+    4. Return the result as a Python dictionary.
     """
 
     def __init__(self):
-
         self.llm = GeminiService()
 
     # ========================================================
-    # ANALYZE JOB
+    # ANALYZE JOB DESCRIPTION
     # ========================================================
 
-    def analyze(
-        self,
-        job_description: str,
-    ) -> dict:
+    def analyze(self, job_description: str) -> dict:
+
+        # ----------------------------------------------------
+        # Validate input
+        # ----------------------------------------------------
 
         if not job_description:
             raise ValueError(
                 "Job description cannot be empty."
             )
 
-=======
-import json
+        job_description = job_description.strip()
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-
-from config.settings import GEMINI_MODEL, GEMINI_API_KEY
-
-
-class JobAgent:
-
-    def __init__(self):
-
-        if not GEMINI_API_KEY:
+        if len(job_description) < 20:
             raise ValueError(
-                "GOOGLE_API_KEY is missing."
+                "Please provide a more detailed job description."
             )
 
-        self.llm = ChatGoogleGenerativeAI(
-            model=GEMINI_MODEL,
-            google_api_key=GEMINI_API_KEY,
-            temperature=0,
-        )
+        # ----------------------------------------------------
+        # Gemini prompt
+        # ----------------------------------------------------
 
-    def analyze(self, job_description):
-
->>>>>>> f1fae11c75574876b6ccf36da7b7f706c3e1d458
         prompt = f"""
-You are an expert Indian technology recruiter.
+You are an expert AI recruitment assistant.
 
-<<<<<<< HEAD
-Analyze the following job description and extract
-structured recruitment requirements.
+Your task is to analyze the following job description
+and extract the recruitment requirements.
 
 JOB DESCRIPTION
-----------------
+================
+
 {job_description}
+
+================
 
 Return ONLY valid JSON.
 
@@ -81,128 +69,150 @@ Use exactly this structure:
     "salary_min_lpa": null,
     "salary_max_lpa": null,
     "location": "",
+    "employment_type": "",
     "regional_preference": "",
     "relocation_willingness": ""
 }}
 
 Rules:
 
-1. required_skills:
-   Include skills that are explicitly required.
+1. job_title:
+   Extract the job title.
 
-2. preferred_skills:
-   Include optional or preferred skills.
+2. required_skills:
+   Include only skills explicitly required
+   or clearly essential for the role.
 
-3. experience:
-   Extract the required experience exactly as
-   reasonably stated.
+3. preferred_skills:
+   Include optional, preferred or good-to-have skills.
 
-4. education:
-   Include degree or educational requirements.
+4. experience:
+   Extract required years of experience.
 
-5. responsibilities:
-   Extract the major responsibilities.
+5. education:
+   Extract required degrees, qualifications
+   or educational requirements.
 
-6. notice_period:
-   Extract the acceptable notice period if present.
+6. responsibilities:
+   Extract the major responsibilities
+   mentioned in the job description.
 
-7. salary_min_lpa:
-   Extract minimum annual salary in Indian LPA.
-   Use null if unavailable.
+7. notice_period:
+   Extract the required or preferred notice period.
 
-8. salary_max_lpa:
-   Extract maximum annual salary in Indian LPA.
-   Use null if unavailable.
+8. salary_min_lpa:
+   Extract the minimum salary in LPA if mentioned.
+   Otherwise use null.
 
-9. location:
-   Extract job location.
+9. salary_max_lpa:
+   Extract the maximum salary in LPA if mentioned.
+   Otherwise use null.
 
-10. regional_preference:
-    Extract any India-specific regional requirement.
+10. location:
+    Extract the job location.
 
-11. relocation_willingness:
+11. employment_type:
+    Extract whether the role is Full-time,
+    Part-time, Internship, Contract, etc.
+
+12. regional_preference:
+    Extract any regional/candidate-location
+    preference if explicitly mentioned.
+
+13. relocation_willingness:
     Extract whether relocation is required,
-    optional, or not mentioned.
+    preferred, optional or not mentioned.
 
-12. Do not invent information.
+14. Never invent information.
 
-13. If a value is unavailable, use:
-    - ""
-    - []
-    - null
+15. If information is unavailable:
+    - use "" for text
+    - use [] for lists
+    - use null for numeric values.
 
 Return JSON only.
-=======
-Analyze this job description.
-
-Return ONLY valid JSON with:
-
-title
-required_skills
-experience_required
-education_required
-location
-min_salary
-max_salary
-max_notice_period
-relocation_required
-
-Rules:
-- required_skills must be a list.
-- experience_required must be a number.
-- salaries are LPA numbers.
-- max_notice_period is days.
-- Do not invent requirements that are not reasonably present.
-- Use null when information is missing.
-
-JOB DESCRIPTION:
-{job_description}
->>>>>>> f1fae11c75574876b6ccf36da7b7f706c3e1d458
 """
 
-        result = self.llm.generate_json(
-            prompt
-        )
-
-<<<<<<< HEAD
         # ----------------------------------------------------
-        # Ensure expected fields exist
+        # Call Gemini
         # ----------------------------------------------------
 
-        defaults = {
-=======
-        content = response.content.strip()
->>>>>>> f1fae11c75574876b6ccf36da7b7f706c3e1d458
+        result = self.llm.generate_json(prompt)
 
+        # ----------------------------------------------------
+        # Make sure result is a dictionary
+        # ----------------------------------------------------
+
+        if not isinstance(result, dict):
+            raise ValueError(
+                "Gemini returned an invalid job analysis."
+            )
+
+        # ----------------------------------------------------
+        # Default structure
+        # ----------------------------------------------------
+
+        default_result = {
             "job_title": "",
-
             "required_skills": [],
-
             "preferred_skills": [],
-
             "experience": "",
-
             "education": [],
-
             "responsibilities": [],
-
             "notice_period": "",
-
             "salary_min_lpa": None,
-
             "salary_max_lpa": None,
-
             "location": "",
-
+            "employment_type": "",
             "regional_preference": "",
-
-            "relocation_willingness": "",
+            "relocation_willingness": ""
         }
 
-        for key, default in defaults.items():
+        # ----------------------------------------------------
+        # Fill missing fields
+        # ----------------------------------------------------
+
+        for key, default_value in default_result.items():
 
             if key not in result:
+                result[key] = default_value
 
-                result[key] = default
+        # ----------------------------------------------------
+        # Ensure list fields are lists
+        # ----------------------------------------------------
+
+        list_fields = [
+            "required_skills",
+            "preferred_skills",
+            "education",
+            "responsibilities"
+        ]
+
+        for field in list_fields:
+
+            if not isinstance(result[field], list):
+
+                if result[field]:
+                    result[field] = [str(result[field])]
+                else:
+                    result[field] = []
+
+        # ----------------------------------------------------
+        # Return final structured result
+        # ----------------------------------------------------
 
         return result
+
+
+# ============================================================
+# OPTIONAL HELPER FUNCTION
+# ============================================================
+
+def analyze_job(job_description: str) -> dict:
+    """
+    Convenience function for other parts of the application.
+    """
+
+    agent = JobAgent()
+
+    return agent.analyze(job_description)
