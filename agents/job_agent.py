@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from services.llm_service import GeminiService
 
 
@@ -28,9 +29,36 @@ class JobAgent:
                 "Job description cannot be empty."
             )
 
+=======
+import json
+
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+from config.settings import GEMINI_MODEL, GEMINI_API_KEY
+
+
+class JobAgent:
+
+    def __init__(self):
+
+        if not GEMINI_API_KEY:
+            raise ValueError(
+                "GOOGLE_API_KEY is missing."
+            )
+
+        self.llm = ChatGoogleGenerativeAI(
+            model=GEMINI_MODEL,
+            google_api_key=GEMINI_API_KEY,
+            temperature=0,
+        )
+
+    def analyze(self, job_description):
+
+>>>>>>> f1fae11c75574876b6ccf36da7b7f706c3e1d458
         prompt = f"""
 You are an expert Indian technology recruiter.
 
+<<<<<<< HEAD
 Analyze the following job description and extract
 structured recruitment requirements.
 
@@ -104,17 +132,47 @@ Rules:
     - null
 
 Return JSON only.
+=======
+Analyze this job description.
+
+Return ONLY valid JSON with:
+
+title
+required_skills
+experience_required
+education_required
+location
+min_salary
+max_salary
+max_notice_period
+relocation_required
+
+Rules:
+- required_skills must be a list.
+- experience_required must be a number.
+- salaries are LPA numbers.
+- max_notice_period is days.
+- Do not invent requirements that are not reasonably present.
+- Use null when information is missing.
+
+JOB DESCRIPTION:
+{job_description}
+>>>>>>> f1fae11c75574876b6ccf36da7b7f706c3e1d458
 """
 
         result = self.llm.generate_json(
             prompt
         )
 
+<<<<<<< HEAD
         # ----------------------------------------------------
         # Ensure expected fields exist
         # ----------------------------------------------------
 
         defaults = {
+=======
+        content = response.content.strip()
+>>>>>>> f1fae11c75574876b6ccf36da7b7f706c3e1d458
 
             "job_title": "",
 
