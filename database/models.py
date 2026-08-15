@@ -1,219 +1,526 @@
 import json
 
-from database.database import (
-    execute_query,
-    fetch_all,
-    fetch_one,
-)
+from database.database import get_connection
 
 
-def save_candidate(candidate):
+def _json(value):
 
-    query = """
-        INSERT INTO candidates (
-            name,
-            email,
-            phone,
-            skills,
+    if isinstance(value, list):
+        return json.dumps(value)
+
+    return json.dumps([])
+
+
+def _decode(value):
+
+    if isinstance(value, list):
+        return value
+
+    try:
+
+        parsed = json.loads(
+            value or "[]"
+        )
+
+        if isinstance(parsed, list):
+            return parsed
+
+    except (
+        TypeError,
+        json.JSONDecodeError
+    ):
+        pass
+
+    return []
+
+
+# ============================================================
+# JOBS
+# ============================================================
+
+def create_job(data):
+
+    connection = get_connection()
+
+    cursor = connection.execute(
+        """
+        INSERT INTO jobs
+        (
+            title,
+            description,
+            required_skills,
+            preferred_skills,
             experience,
             education,
-            college,
-            location,
             notice_period,
-            expected_salary,
-            relocation,
-            resume_text
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """
-
-    return execute_query(
-        query,
-        (
-            candidate.get("name", ""),
-            candidate.get("email", ""),
-            candidate.get("phone", ""),
-            json.dumps(candidate.get("skills", [])),
-            candidate.get("experience", 0),
-            candidate.get("education", ""),
-            candidate.get("college", ""),
-            candidate.get("location", ""),
-            candidate.get("notice_period"),
-            candidate.get("expected_salary"),
-            int(bool(candidate.get("relocation")))
-            if candidate.get("relocation") is not None
-            else None,
-            candidate.get("resume_text", ""),
-        )
-    )
-
-
-def save_job(job, description=""):
-
-    query = """
-        INSERT INTO jobs (
-            title,
-            required_skills,
-            experience_required,
-            education_required,
+            salary_min,
+            salary_max,
             location,
-            min_salary,
-            max_salary,
-            max_notice_period,
-            relocation_required,
-            description
+            regional_preference,
+            relocation_willingness
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """
 
-    return execute_query(
-        query,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
         (
-            job.get("title", ""),
-            json.dumps(job.get("required_skills", [])),
-            job.get("experience_required", 0),
-            job.get("education_required", ""),
-            job.get("location", ""),
-            job.get("min_salary"),
-            job.get("max_salary"),
-            job.get("max_notice_period"),
-            int(bool(job.get("relocation_required")))
-            if job.get("relocation_required") is not None
-            else None,
-            description,
+            data["title"].strip(),
+
+            data["description"].strip(),
+
+            _json(
+                data.get(
+                    "required_skills"
+                )
+            ),
+
+            _json(
+                data.get(
+                    "preferred_skills"
+                )
+            ),
+
+            data.get(
+                "experience",
+                ""
+            ),
+
+            _json(
+                data.get(
+                    "education"
+                )
+            ),
+
+            data.get(
+                "notice_period",
+                ""
+            ),
+
+            data.get(
+                "salary_min_lpa"
+            ),
+
+            data.get(
+                "salary_max_lpa"
+            ),
+
+            data.get(
+                "location",
+                ""
+            ),
+
+            data.get(
+                "regional_preference",
+                ""
+            ),
+
+            data.get(
+                "relocation_willingness",
+                ""
+            ),
         )
     )
 
+    connection.commit()
 
-def save_application(candidate_id, job_id, result):
+    job_id = cursor.lastrowid
 
-    query = """
-        INSERT INTO applications (
-            candidate_id,
-            job_id,
-            overall_score,
-            skill_score,
-            experience_score,
-            education_score,
-            notice_score,
-            salary_score,
-            location_score,
-            recommendation,
-            matched_skills,
-            missing_skills,
-            status
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """
+    connection.close()
 
-    return execute_query(
-        query,
-        (
-            candidate_id,
-            job_id,
-            result.get("overall_score", 0),
-            result.get("skill_score", 0),
-            result.get("experience_score", 0),
-            result.get("education_score", 0),
-            result.get("notice_score", 0),
-            result.get("salary_score", 0),
-            result.get("location_score", 0),
-            result.get("recommendation", ""),
-            json.dumps(result.get("matched_skills", [])),
-            json.dumps(result.get("missing_skills", [])),
-            result.get("recommendation", "Applied"),
-        )
-    )
-
-
-def save_interview(
-    candidate_id,
-    job_id,
-    interview_date,
-    interview_time,
-    interview_type="Technical",
-    notes=""
-):
-
-    query = """
-        INSERT INTO interviews (
-            candidate_id,
-            job_id,
-            interview_date,
-            interview_time,
-            interview_type,
-            notes
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
-    """
-
-    return execute_query(
-        query,
-        (
-            candidate_id,
-            job_id,
-            interview_date,
-            interview_time,
-            interview_type,
-            notes,
-        )
-    )
-
-
-def get_candidates():
-
-    return fetch_all(
-        """
-        SELECT *
-        FROM candidates
-        ORDER BY created_at DESC
-        """
-    )
+    return job_id
 
 
 def get_jobs():
 
-    return fetch_all(
+    connection = get_connection()
+
+    rows = connection.execute(
         """
         SELECT *
         FROM jobs
-        ORDER BY created_at DESC
+        ORDER BY id DESC
         """
+    ).fetchall()
+
+    connection.close()
+
+    return [
+        dict(row)
+        for row in rows
+    ]
+
+
+def get_job(job_id):
+
+    connection = get_connection()
+
+    row = connection.execute(
+        """
+        SELECT *
+        FROM jobs
+        WHERE id = ?
+        """,
+        (job_id,)
+    ).fetchone()
+
+    connection.close()
+
+    return dict(row) if row else None
+
+
+# ============================================================
+# CANDIDATES
+# ============================================================
+
+def create_candidate(data):
+
+    connection = get_connection()
+
+    cursor = connection.execute(
+        """
+        INSERT INTO candidates
+        (
+            name,
+            email,
+            phone,
+            resume_filename,
+            resume_text,
+            skills,
+            education,
+            experience,
+            notice_period,
+            expected_salary,
+            location,
+            relocation_willingness,
+            score,
+            status
+        )
+
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            data.get(
+                "name"
+            ) or "Unknown",
+
+            data.get(
+                "email",
+                ""
+            ),
+
+            data.get(
+                "phone",
+                ""
+            ),
+
+            data.get(
+                "resume_filename",
+                ""
+            ),
+
+            data.get(
+                "resume_text",
+                ""
+            ),
+
+            _json(
+                data.get(
+                    "skills"
+                )
+            ),
+
+            _json(
+                data.get(
+                    "education"
+                )
+            ),
+
+            data.get(
+                "experience",
+                ""
+            ),
+
+            data.get(
+                "notice_period",
+                ""
+            ),
+
+            data.get(
+                "expected_salary"
+            ),
+
+            data.get(
+                "location",
+                ""
+            ),
+
+            data.get(
+                "relocation_willingness",
+                ""
+            ),
+
+            float(
+                data.get(
+                    "score",
+                    0
+                ) or 0
+            ),
+
+            data.get(
+                "status",
+                "New"
+            ),
+        )
     )
 
+    connection.commit()
 
-def get_applications():
+    candidate_id = cursor.lastrowid
 
-    return fetch_all(
+    connection.close()
+
+    return candidate_id
+
+
+def get_candidates():
+
+    connection = get_connection()
+
+    rows = connection.execute(
         """
-        SELECT
-            applications.*,
-            candidates.name AS candidate_name,
-            candidates.email AS candidate_email,
-            jobs.title AS job_title
-        FROM applications
-        JOIN candidates
-            ON candidates.id = applications.candidate_id
-        JOIN jobs
-            ON jobs.id = applications.job_id
-        ORDER BY applications.overall_score DESC
+        SELECT *
+        FROM candidates
+        ORDER BY score DESC, id DESC
         """
+    ).fetchall()
+
+    connection.close()
+
+    return [
+        dict(row)
+        for row in rows
+    ]
+
+
+def get_candidate(candidate_id):
+
+    connection = get_connection()
+
+    row = connection.execute(
+        """
+        SELECT *
+        FROM candidates
+        WHERE id = ?
+        """,
+        (candidate_id,)
+    ).fetchone()
+
+    connection.close()
+
+    return dict(row) if row else None
+
+
+def update_candidate_score(
+    candidate_id,
+    score,
+    status=None
+):
+
+    connection = get_connection()
+
+    if status is None:
+
+        connection.execute(
+            """
+            UPDATE candidates
+            SET score = ?
+            WHERE id = ?
+            """,
+            (
+                float(score),
+                candidate_id
+            )
+        )
+
+    else:
+
+        connection.execute(
+            """
+            UPDATE candidates
+            SET score = ?,
+                status = ?
+            WHERE id = ?
+            """,
+            (
+                float(score),
+                status,
+                candidate_id
+            )
+        )
+
+    connection.commit()
+
+    connection.close()
+
+
+def update_candidate_status(
+    candidate_id,
+    status
+):
+
+    connection = get_connection()
+
+    connection.execute(
+        """
+        UPDATE candidates
+        SET status = ?
+        WHERE id = ?
+        """,
+        (
+            status,
+            candidate_id
+        )
     )
+
+    connection.commit()
+
+    connection.close()
+
+
+# ============================================================
+# ASSESSMENTS
+# ============================================================
+
+def save_assessment_result(
+    candidate_id,
+    job_id,
+    score,
+    details=""
+):
+
+    connection = get_connection()
+
+    connection.execute(
+        """
+        INSERT INTO assessments
+        (
+            candidate_id,
+            job_id,
+            score,
+            status,
+            details
+        )
+
+        VALUES (?, ?, ?, 'Completed', ?)
+        """,
+        (
+            candidate_id,
+            job_id,
+            float(score),
+            details
+        )
+    )
+
+    connection.commit()
+
+    connection.close()
+
+
+# ============================================================
+# INTERVIEWS
+# ============================================================
+
+def schedule_interview(
+    candidate_id,
+    job_id,
+    date,
+    time,
+    mode,
+    notes
+):
+
+    connection = get_connection()
+
+    connection.execute(
+        """
+        INSERT INTO interviews
+        (
+            candidate_id,
+            job_id,
+            interview_date,
+            interview_time,
+            mode,
+            notes
+        )
+
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            candidate_id,
+            job_id,
+            date,
+            time,
+            mode,
+            notes
+        )
+    )
+
+    connection.commit()
+
+    connection.close()
 
 
 def get_interviews():
 
-    return fetch_all(
+    connection = get_connection()
+
+    rows = connection.execute(
         """
         SELECT
-            interviews.*,
-            candidates.name AS candidate_name,
-            jobs.title AS job_title
-        FROM interviews
-        JOIN candidates
-            ON candidates.id = interviews.candidate_id
-        JOIN jobs
-            ON jobs.id = interviews.job_id
-        ORDER BY interview_date, interview_time
+            i.*,
+            c.name AS candidate_name,
+            j.title AS job_title
+
+        FROM interviews i
+
+        LEFT JOIN candidates c
+            ON c.id = i.candidate_id
+
+        LEFT JOIN jobs j
+            ON j.id = i.job_id
+
+        ORDER BY
+            i.interview_date,
+            i.interview_time
         """
-    )
+    ).fetchall()
+
+    connection.close()
+
+    return [
+        dict(row)
+        for row in rows
+    ]
+
+
+# ============================================================
+# JSON HELPERS
+# ============================================================
+
+def decode_json_fields(row):
+
+    item = dict(row)
+
+    for key in (
+        "required_skills",
+        "preferred_skills",
+        "education",
+        "skills"
+    ):
+
+        if key in item:
+
+            item[key] = _decode(
+                item[key]
+            )
+
+    return item

@@ -3,138 +3,254 @@ import json
 import pandas as pd
 import streamlit as st
 
-from database.models import get_applications
+from database.models import (
+    get_candidates,
+    get_jobs,
+    update_candidate_score,
+)
+
+from matching.matcher import (
+    score_candidate
+)
+
+
+def _decode(value):
+
+    if isinstance(
+        value,
+        list
+    ):
+
+        return value
+
+    try:
+
+        parsed = json.loads(
+            value or "[]"
+        )
+
+        if isinstance(
+            parsed,
+            list
+        ):
+
+            return parsed
+
+    except (
+        TypeError,
+        json.JSONDecodeError
+    ):
+
+        pass
+
+    return []
 
 
 def show_ranking_page():
 
-    st.header("🏆 Candidate Ranking")
+    st.title(
+        "🏆 Candidate Ranking"
+    )
 
-    applications = get_applications()
+    st.caption(
+        "AI-assisted candidate ranking "
+        "for the selected job."
+    )
 
-    if not applications:
+    candidates = get_candidates()
+
+    jobs = get_jobs()
+
+    if not candidates:
 
         st.info(
-            "No candidate applications available."
+            "No candidates available."
         )
 
         return
 
-    # --------------------------------------------------
-    # FILTERS
-    # --------------------------------------------------
+    if not jobs:
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        minimum_score = st.slider(
-            "Minimum Match Score",
-            min_value=0,
-            max_value=100,
-            value=0,
-        )
-
-    with col2:
-
-        recommendations = [
-            "All",
-            "Shortlisted",
-            "Review",
-            "Not Shortlisted",
-        ]
-
-        recommendation_filter = st.selectbox(
-            "Recommendation",
-            recommendations
-        )
-
-    # --------------------------------------------------
-    # FILTER APPLICATIONS
-    # --------------------------------------------------
-
-    filtered = []
-
-    for application in applications:
-
-        score = application.get(
-            "overall_score",
-            0
-        )
-
-        recommendation = application.get(
-            "recommendation",
-            ""
-        )
-
-        if score < minimum_score:
-            continue
-
-        if (
-            recommendation_filter != "All"
-            and recommendation
-            != recommendation_filter
-        ):
-            continue
-
-        filtered.append(
-            application
-        )
-
-    if not filtered:
-
-        st.warning(
-            "No candidates match the selected filters."
+        st.info(
+            "No jobs available."
         )
 
         return
 
-    # --------------------------------------------------
-    # RANKED TABLE
-    # --------------------------------------------------
+    # ========================================================
+    # SELECT JOB
+    # ========================================================
 
-    rows = []
+    job_map = {
 
-    for rank, application in enumerate(
-        filtered,
-        start=1
+        f"#{job['id']} — {job['title']}":
+        job
+
+        for job in jobs
+    }
+
+    selected_label = st.selectbox(
+        "Rank candidates for",
+        list(
+            job_map.keys()
+        ),
+    )
+
+    job = job_map[
+        selected_label
+    ]
+
+    # ========================================================
+    # CALCULATE
+    # ========================================================
+
+    if st.button(
+        "⚡ Calculate Ranking",
+        type="primary",
     ):
 
-        rows.append(
-            {
-                "Rank": rank,
-                "Candidate": application.get(
-                    "candidate_name",
-                    "-"
-                ),
-                "Job": application.get(
-                    "job_title",
-                    "-"
-                ),
-                "Match Score": application.get(
-                    "overall_score",
-                    0
-                ),
-                "Skills": application.get(
-                    "skill_score",
-                    0
-                ),
-                "Experience": application.get(
-                    "experience_score",
-                    0
-                ),
-                "Recommendation": application.get(
-                    "recommendation",
-                    "-"
-                ),
-                "Status": application.get(
-                    "status",
-                    "-"
-                ),
-            }
+        rows = []
+
+        for candidate in candidates:
+
+            candidate_for_score = dict(
+                candidate
+            )
+
+            candidate_for_score[
+                "skills"
+            ] = _decode(
+                candidate.get(
+                    "skills"
+                )
+            )
+
+            candidate_for_score[
+                "education"
+            ] = _decode(
+                candidate.get(
+                    "education"
+                )
+            )
+
+            score = score_candidate(
+                candidate_for_score,
+                job
+            )
+
+            if score >= 75:
+
+                status = "Shortlisted"
+
+            elif score >= 50:
+
+                status = "Screening"
+
+            else:
+
+                status = "New"
+
+            update_candidate_score(
+                candidate["id"],
+                score,
+                status
+            )
+
+            rows.append(
+                {
+                    "Candidate ID":
+                        candidate["id"],
+
+                    "Candidate":
+                        candidate["name"],
+
+                    "Email":
+                        candidate["email"],
+
+                    "Score":
+                        score,
+
+                    "Status":
+                        status,
+
+                    "Skills":
+                        ", ".join(
+                            candidate_for_score[
+                                "skills"
+                            ]
+                        ),
+
+                    "Education":
+                        ", ".join(
+                            candidate_for_score[
+                                "education"
+                            ]
+                        ),
+
+                    "Notice Period":
+                        candidate[
+                            "notice_period"
+                        ],
+
+                    "Expected Salary (LPA)":
+                        candidate[
+                            "expected_salary"
+                        ],
+
+                    "Location":
+                        candidate[
+                            "location"
+                        ],
+                }
+            )
+
+        st.session_state[
+            "ranking_rows"
+        ] = rows
+
+    # ========================================================
+    # DISPLAY
+    # ========================================================
+
+    rows = st.session_state.get(
+        "ranking_rows"
+    )
+
+    if not rows:
+
+        st.info(
+            "Click 'Calculate Ranking' "
+            "to rank the candidates."
         )
 
-    df = pd.DataFrame(rows)
+        return
+
+    df = pd.DataFrame(
+        rows
+    )
+
+    df = df.sort_values(
+        "Score",
+        ascending=False
+    ).reset_index(
+        drop=True
+    )
+
+    # ========================================================
+    # TOP CANDIDATE
+    # ========================================================
+
+    top = df.iloc[0]
+
+    st.success(
+        f"🏆 Top Candidate: "
+        f"{top['Candidate']} "
+        f"— {top['Score']}/100"
+    )
+
+    # ========================================================
+    # TABLE
+    # ========================================================
 
     st.dataframe(
         df,
@@ -142,125 +258,24 @@ def show_ranking_page():
         hide_index=True,
     )
 
-    # --------------------------------------------------
-    # CANDIDATE DETAILS
-    # --------------------------------------------------
+    # ========================================================
+    # CSV EXPORT
+    # ========================================================
 
-    st.divider()
-
-    st.subheader(
-        "Candidate Details"
+    csv = df.to_csv(
+        index=False
+    ).encode(
+        "utf-8"
     )
 
-    names = [
-        application.get(
-            "candidate_name",
-            "Unknown"
-        )
-        for application in filtered
-    ]
+    st.download_button(
+        "⬇️ Export Candidate Ranking CSV",
 
-    selected_name = st.selectbox(
-        "Select Candidate",
-        names
+        data=csv,
+
+        file_name=(
+            "candidate_ranking.csv"
+        ),
+
+        mime="text/csv",
     )
-
-    selected = next(
-        application
-        for application in filtered
-        if application.get(
-            "candidate_name"
-        ) == selected_name
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.metric(
-            "Overall Match",
-            f"{selected.get('overall_score', 0)}%"
-        )
-
-        st.metric(
-            "Skill Score",
-            f"{selected.get('skill_score', 0)}%"
-        )
-
-        st.metric(
-            "Experience Score",
-            f"{selected.get('experience_score', 0)}%"
-        )
-
-    with col2:
-
-        st.metric(
-            "Education Score",
-            f"{selected.get('education_score', 0)}%"
-        )
-
-        st.metric(
-            "Notice Score",
-            f"{selected.get('notice_score', 0)}%"
-        )
-
-        st.metric(
-            "Salary Score",
-            f"{selected.get('salary_score', 0)}%"
-        )
-
-    st.write(
-        "**Matched Skills**"
-    )
-
-    try:
-
-        matched = json.loads(
-            selected.get(
-                "matched_skills",
-                "[]"
-            )
-        )
-
-        st.write(
-            ", ".join(matched)
-            if matched
-            else "None"
-        )
-
-    except Exception:
-
-        st.write(
-            selected.get(
-                "matched_skills",
-                "-"
-            )
-        )
-
-    st.write(
-        "**Missing Skills**"
-    )
-
-    try:
-
-        missing = json.loads(
-            selected.get(
-                "missing_skills",
-                "[]"
-            )
-        )
-
-        st.write(
-            ", ".join(missing)
-            if missing
-            else "None"
-        )
-
-    except Exception:
-
-        st.write(
-            selected.get(
-                "missing_skills",
-                "-"
-            )
-        )

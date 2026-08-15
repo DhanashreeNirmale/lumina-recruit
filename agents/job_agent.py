@@ -1,76 +1,150 @@
-import json
-
-from langchain_google_genai import ChatGoogleGenerativeAI
-
-from config.settings import GEMINI_MODEL, GOOGLE_API_KEY
+from services.llm_service import GeminiService
 
 
-class ResumeAgent:
+class JobAgent:
+    """
+    Job Requirement Extraction Agent.
+
+    Responsibility:
+    Convert an unstructured job description
+    into structured recruitment requirements.
+    """
 
     def __init__(self):
 
-        if not GOOGLE_API_KEY:
+        self.llm = GeminiService()
+
+    # ========================================================
+    # ANALYZE JOB
+    # ========================================================
+
+    def analyze(
+        self,
+        job_description: str,
+    ) -> dict:
+
+        if not job_description:
             raise ValueError(
-                "GOOGLE_API_KEY is missing. "
-                "Add it to your .env file."
+                "Job description cannot be empty."
             )
 
-        self.llm = ChatGoogleGenerativeAI(
-            model=GEMINI_MODEL,
-            google_api_key=GOOGLE_API_KEY,
-            temperature=0,
-        )
-
-    def analyze(self, resume_text):
-
         prompt = f"""
-You are an Indian technology recruitment assistant.
+You are an expert Indian technology recruiter.
 
-Analyze the following resume.
+Analyze the following job description and extract
+structured recruitment requirements.
 
-Return ONLY valid JSON with these fields:
+JOB DESCRIPTION
+----------------
+{job_description}
 
-name
-email
-phone
-skills
-experience
-education
-college
-location
-notice_period
-expected_salary
-relocation
+Return ONLY valid JSON.
+
+Use exactly this structure:
+
+{{
+    "job_title": "",
+    "required_skills": [],
+    "preferred_skills": [],
+    "experience": "",
+    "education": [],
+    "responsibilities": [],
+    "notice_period": "",
+    "salary_min_lpa": null,
+    "salary_max_lpa": null,
+    "location": "",
+    "regional_preference": "",
+    "relocation_willingness": ""
+}}
 
 Rules:
-- skills must be a JSON list.
-- experience must be a number.
-- notice_period must be a number of days or null.
-- expected_salary must be a number in LPA or null.
-- relocation must be true, false, or null.
-- Do not invent information.
-- If information is missing, use null or an empty string/list.
 
-RESUME:
-{resume_text}
+1. required_skills:
+   Include skills that are explicitly required.
+
+2. preferred_skills:
+   Include optional or preferred skills.
+
+3. experience:
+   Extract the required experience exactly as
+   reasonably stated.
+
+4. education:
+   Include degree or educational requirements.
+
+5. responsibilities:
+   Extract the major responsibilities.
+
+6. notice_period:
+   Extract the acceptable notice period if present.
+
+7. salary_min_lpa:
+   Extract minimum annual salary in Indian LPA.
+   Use null if unavailable.
+
+8. salary_max_lpa:
+   Extract maximum annual salary in Indian LPA.
+   Use null if unavailable.
+
+9. location:
+   Extract job location.
+
+10. regional_preference:
+    Extract any India-specific regional requirement.
+
+11. relocation_willingness:
+    Extract whether relocation is required,
+    optional, or not mentioned.
+
+12. Do not invent information.
+
+13. If a value is unavailable, use:
+    - ""
+    - []
+    - null
+
+Return JSON only.
 """
 
-        response = self.llm.invoke(prompt)
+        result = self.llm.generate_json(
+            prompt
+        )
 
-        content = response.content
+        # ----------------------------------------------------
+        # Ensure expected fields exist
+        # ----------------------------------------------------
 
-        # Gemini normally returns text. Remove markdown fences if present.
-        content = content.strip()
+        defaults = {
 
-        if content.startswith("```"):
-            content = content.replace("```json", "")
-            content = content.replace("```", "")
-            content = content.strip()
+            "job_title": "",
 
-        try:
-            return json.loads(content)
+            "required_skills": [],
 
-        except json.JSONDecodeError:
-            return {
-                "raw_analysis": content
-            }
+            "preferred_skills": [],
+
+            "experience": "",
+
+            "education": [],
+
+            "responsibilities": [],
+
+            "notice_period": "",
+
+            "salary_min_lpa": None,
+
+            "salary_max_lpa": None,
+
+            "location": "",
+
+            "regional_preference": "",
+
+            "relocation_willingness": "",
+        }
+
+        for key, default in defaults.items():
+
+            if key not in result:
+
+                result[key] = default
+
+        return result

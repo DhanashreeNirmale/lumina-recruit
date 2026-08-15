@@ -1,147 +1,123 @@
 import streamlit as st
+import pandas as pd
 
 from database.models import (
-    get_applications,
     get_candidates,
-    get_interviews,
     get_jobs,
+    get_interviews,
 )
 
 
 def show_dashboard():
 
-    st.header("📊 Recruitment Dashboard")
+    st.title("📊 Recruitment Dashboard")
+
+    st.caption(
+        "Track A • Option A1 • Indian Tech Recruitment"
+    )
 
     candidates = get_candidates()
     jobs = get_jobs()
-    applications = get_applications()
     interviews = get_interviews()
 
-    # --------------------------------------------------
-    # KPI CARDS
-    # --------------------------------------------------
+    # ========================================================
+    # METRICS
+    # ========================================================
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        "Total Candidates",
+        "Candidates",
         len(candidates)
     )
 
     col2.metric(
-        "Active Jobs",
+        "Jobs",
         len(jobs)
     )
 
     col3.metric(
-        "Applications",
-        len(applications)
-    )
-
-    col4.metric(
-        "Interviews",
+        "Scheduled Interviews",
         len(interviews)
     )
 
     st.divider()
 
-    # --------------------------------------------------
-    # RECRUITMENT PIPELINE
-    # --------------------------------------------------
+    # ========================================================
+    # CANDIDATE PIPELINE
+    # ========================================================
 
-    st.subheader("Recruitment Pipeline")
+    st.subheader("👥 Candidate Pipeline")
 
-    shortlisted = sum(
-        1
-        for application in applications
-        if application.get("recommendation")
-        == "Shortlisted"
-    )
+    if candidates:
 
-    review = sum(
-        1
-        for application in applications
-        if application.get("recommendation")
-        == "Review"
-    )
+        df = pd.DataFrame(
+            candidates
+        )
 
-    rejected = sum(
-        1
-        for application in applications
-        if application.get("recommendation")
-        == "Not Shortlisted"
-    )
+        columns = [
+            "id",
+            "name",
+            "email",
+            "score",
+            "status",
+            "location",
+        ]
 
-    col1, col2, col3 = st.columns(3)
+        available_columns = [
+            column
+            for column in columns
+            if column in df.columns
+        ]
 
-    col1.metric(
-        "Shortlisted",
-        shortlisted
-    )
+        st.dataframe(
+            df[available_columns],
+            use_container_width=True,
+            hide_index=True,
+        )
 
-    col2.metric(
-        "Needs Review",
-        review
-    )
-
-    col3.metric(
-        "Not Shortlisted",
-        rejected
-    )
-
-    st.divider()
-
-    # --------------------------------------------------
-    # TOP CANDIDATES
-    # --------------------------------------------------
-
-    st.subheader("🏆 Top Candidates")
-
-    if not applications:
+    else:
 
         st.info(
-            "No candidate applications available yet."
+            "No candidates yet. "
+            "Go to Candidates and upload resumes."
         )
 
-        return
+    # ========================================================
+    # UPCOMING INTERVIEWS
+    # ========================================================
 
-    top_candidates = applications[:10]
+    st.subheader("📅 Upcoming Interviews")
 
-    rows = []
+    if interviews:
 
-    for index, application in enumerate(
-        top_candidates,
-        start=1
-    ):
-
-        rows.append(
-            {
-                "Rank": index,
-                "Candidate": application.get(
-                    "candidate_name",
-                    "-"
-                ),
-                "Job": application.get(
-                    "job_title",
-                    "-"
-                ),
-                "Match Score": application.get(
-                    "overall_score",
-                    0
-                ),
-                "Recommendation": application.get(
-                    "recommendation",
-                    "-"
-                ),
-                "Status": application.get(
-                    "status",
-                    "-"
-                ),
-            }
+        df = pd.DataFrame(
+            interviews
         )
 
-    st.dataframe(
-        rows,
-        use_container_width=True,
-        hide_index=True,
-    )
+        columns = [
+            "candidate_name",
+            "job_title",
+            "interview_date",
+            "interview_time",
+            "mode",
+            "status",
+        ]
+
+        available_columns = [
+            column
+            for column in columns
+            if column in df.columns
+        ]
+
+        st.dataframe(
+            df[available_columns],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    else:
+
+        st.info(
+            "No interviews scheduled."
+        )

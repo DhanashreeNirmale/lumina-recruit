@@ -1,207 +1,352 @@
+import json
+
 import streamlit as st
 
 from agents.job_agent import JobAgent
 from database.models import (
+    create_job,
     get_jobs,
-    save_job,
+    decode_json_fields,
 )
+
+
+def _as_list(value):
+
+    if isinstance(value, list):
+        return value
+
+    if isinstance(value, str):
+
+        try:
+
+            parsed = json.loads(value)
+
+            if isinstance(parsed, list):
+                return parsed
+
+        except json.JSONDecodeError:
+            pass
+
+        return [
+            item.strip()
+            for item in value.split(",")
+            if item.strip()
+        ]
+
+    return []
 
 
 def show_job_page():
 
-    st.header("💼 Job Management")
+    st.title("💼 Job Requirements")
+
+    st.caption(
+        "AI-powered job requirement extraction"
+    )
 
     tab1, tab2 = st.tabs(
         [
-            "Create Job",
-            "Existing Jobs",
+            "➕ Create Job",
+            "📋 Saved Jobs",
         ]
     )
 
-    # ==================================================
+    # ========================================================
     # CREATE JOB
-    # ==================================================
+    # ========================================================
 
     with tab1:
 
         st.subheader(
-            "Create New Technology Job"
+            "Create New Job"
         )
 
-        job_title = st.text_input(
-            "Job Title",
-            placeholder="Python Developer"
+        title = st.text_input(
+            "Job Title *",
+            placeholder="e.g. Java Developer"
         )
 
-        job_description = st.text_area(
-            "Job Description",
-            height=250,
+        description = st.text_area(
+            "Job Description *",
+            height=300,
             placeholder=(
-                "Enter complete job description..."
-            )
+                "Paste the complete job description here..."
+            ),
         )
 
         if st.button(
-            "🤖 Analyze & Create Job",
-            type="primary"
+            "🤖 Analyze Job with AI",
+            type="primary",
         ):
 
-            if not job_title.strip():
+            if not title.strip():
 
                 st.error(
                     "Job title is required."
                 )
 
-                st.stop()
-
-            if not job_description.strip():
+            elif not description.strip():
 
                 st.error(
                     "Job description is required."
                 )
 
-                st.stop()
+            else:
 
-            try:
+                try:
 
-                with st.spinner(
-                    "AI is analyzing job requirements..."
-                ):
-
-                    agent = JobAgent()
-
-                    job = agent.analyze(
-                        job_description
+                    result = JobAgent().analyze(
+                        description
                     )
 
-                # Ensure manually entered title
-                # remains the source of truth.
+                    st.session_state[
+                        "job_analysis"
+                    ] = result
 
-                job["title"] = job_title
+                    st.success(
+                        "Job requirements extracted successfully."
+                    )
 
-                job_id = save_job(
-                    job,
-                    job_description
+                except Exception as exc:
+
+                    st.error(
+                        f"Job analysis failed: {exc}"
+                    )
+
+        analysis = st.session_state.get(
+            "job_analysis"
+        )
+
+        # ====================================================
+        # SHOW AI ANALYSIS
+        # ====================================================
+
+        if analysis:
+
+            st.subheader(
+                "🔍 Extracted Requirements"
+            )
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.write(
+                    "**Job Title:**",
+                    analysis.get(
+                        "job_title",
+                        title
+                    )
                 )
 
-                st.success(
-                    f"Job created successfully! "
-                    f"Job ID: {job_id}"
+                st.write(
+                    "**Experience:**",
+                    analysis.get(
+                        "experience",
+                        ""
+                    )
                 )
 
-                # --------------------------------------
-                # DISPLAY EXTRACTED REQUIREMENTS
-                # --------------------------------------
-
-                st.subheader(
-                    "AI Extracted Requirements"
+                st.write(
+                    "**Notice Period:**",
+                    analysis.get(
+                        "notice_period",
+                        ""
+                    )
                 )
 
-                col1, col2 = st.columns(2)
-
-                with col1:
-
-                    st.write(
-                        "**Required Skills**"
+                st.write(
+                    "**Location:**",
+                    analysis.get(
+                        "location",
+                        ""
                     )
-
-                    skills = job.get(
-                        "required_skills",
-                        []
-                    )
-
-                    if skills:
-
-                        st.write(
-                            ", ".join(skills)
-                        )
-
-                    else:
-
-                        st.info(
-                            "No skills extracted."
-                        )
-
-                    st.write(
-                        "**Experience Required**"
-                    )
-
-                    st.write(
-                        f"{job.get('experience_required', 0)} years"
-                    )
-
-                    st.write(
-                        "**Education**"
-                    )
-
-                    st.write(
-                        job.get(
-                            "education_required",
-                            "-"
-                        )
-                    )
-
-                with col2:
-
-                    st.write(
-                        "**Location**"
-                    )
-
-                    st.write(
-                        job.get(
-                            "location",
-                            "-"
-                        )
-                    )
-
-                    st.write(
-                        "**Salary Range**"
-                    )
-
-                    minimum = job.get(
-                        "min_salary"
-                    )
-
-                    maximum = job.get(
-                        "max_salary"
-                    )
-
-                    if minimum or maximum:
-
-                        st.write(
-                            f"{minimum or '-'} - "
-                            f"{maximum or '-'} LPA"
-                        )
-
-                    else:
-
-                        st.write("-")
-
-                    st.write(
-                        "**Maximum Notice Period**"
-                    )
-
-                    st.write(
-                        job.get(
-                            "max_notice_period",
-                            "-"
-                        )
-                    )
-
-            except Exception as exc:
-
-                st.error(
-                    f"Unable to create job: {exc}"
                 )
 
-    # ==================================================
-    # EXISTING JOBS
-    # ==================================================
+            with col2:
+
+                st.write(
+                    "**Salary:**",
+                    f"{analysis.get('salary_min_lpa', '-')} "
+                    f"to "
+                    f"{analysis.get('salary_max_lpa', '-')} LPA"
+                )
+
+                st.write(
+                    "**Regional Preference:**",
+                    analysis.get(
+                        "regional_preference",
+                        ""
+                    )
+                )
+
+                st.write(
+                    "**Relocation:**",
+                    analysis.get(
+                        "relocation_willingness",
+                        ""
+                    )
+                )
+
+            st.write(
+                "**Required Skills:**"
+            )
+
+            st.write(
+                ", ".join(
+                    _as_list(
+                        analysis.get(
+                            "required_skills"
+                        )
+                    )
+                )
+            )
+
+            st.write(
+                "**Preferred Skills:**"
+            )
+
+            st.write(
+                ", ".join(
+                    _as_list(
+                        analysis.get(
+                            "preferred_skills"
+                        )
+                    )
+                )
+            )
+
+            st.write(
+                "**Education:**"
+            )
+
+            st.write(
+                ", ".join(
+                    _as_list(
+                        analysis.get(
+                            "education"
+                        )
+                    )
+                )
+            )
+
+            st.write(
+                "**Responsibilities:**"
+            )
+
+            for responsibility in _as_list(
+                analysis.get(
+                    "responsibilities"
+                )
+            ):
+
+                st.write(
+                    f"• {responsibility}"
+                )
+
+            # =================================================
+            # SAVE
+            # =================================================
+
+            if st.button(
+                "💾 Save Job",
+                type="primary",
+            ):
+
+                data = {
+
+                    "title": (
+                        title.strip()
+                        or analysis.get(
+                            "job_title",
+                            "Untitled Job"
+                        )
+                    ),
+
+                    "description": description,
+
+                    "required_skills": _as_list(
+                        analysis.get(
+                            "required_skills"
+                        )
+                    ),
+
+                    "preferred_skills": _as_list(
+                        analysis.get(
+                            "preferred_skills"
+                        )
+                    ),
+
+                    "experience": analysis.get(
+                        "experience",
+                        ""
+                    ),
+
+                    "education": _as_list(
+                        analysis.get(
+                            "education"
+                        )
+                    ),
+
+                    "notice_period": analysis.get(
+                        "notice_period",
+                        ""
+                    ),
+
+                    "salary_min_lpa": analysis.get(
+                        "salary_min_lpa"
+                    ),
+
+                    "salary_max_lpa": analysis.get(
+                        "salary_max_lpa"
+                    ),
+
+                    "location": analysis.get(
+                        "location",
+                        ""
+                    ),
+
+                    "regional_preference": analysis.get(
+                        "regional_preference",
+                        ""
+                    ),
+
+                    "relocation_willingness": analysis.get(
+                        "relocation_willingness",
+                        ""
+                    ),
+                }
+
+                try:
+
+                    job_id = create_job(
+                        data
+                    )
+
+                    st.success(
+                        f"Job saved successfully. "
+                        f"Job ID: {job_id}"
+                    )
+
+                    st.session_state.pop(
+                        "job_analysis",
+                        None
+                    )
+
+                except Exception as exc:
+
+                    st.error(
+                        f"Could not save job: {exc}"
+                    )
+
+    # ========================================================
+    # SAVED JOBS
+    # ========================================================
 
     with tab2:
 
         st.subheader(
-            "Existing Jobs"
+            "📋 Saved Jobs"
         )
 
         jobs = get_jobs()
@@ -209,69 +354,78 @@ def show_job_page():
         if not jobs:
 
             st.info(
-                "No jobs have been created yet."
+                "No jobs saved yet."
             )
 
             return
 
         for job in jobs:
 
+            item = decode_json_fields(
+                job
+            )
+
             with st.expander(
-                f"💼 {job.get('title', 'Untitled Job')}"
+                f"#{item['id']} — {item['title']}"
             ):
 
-                col1, col2 = st.columns(2)
-
-                with col1:
-
-                    st.write(
-                        f"**Location:** "
-                        f"{job.get('location') or '-'}"
-                    )
-
-                    st.write(
-                        f"**Experience:** "
-                        f"{job.get('experience_required', 0)} years"
-                    )
-
-                    st.write(
-                        f"**Education:** "
-                        f"{job.get('education_required') or '-'}"
-                    )
-
-                with col2:
-
-                    st.write(
-                        f"**Salary:** "
-                        f"{job.get('min_salary') or '-'} - "
-                        f"{job.get('max_salary') or '-'} LPA"
-                    )
-
-                    st.write(
-                        f"**Notice Period:** "
-                        f"{job.get('max_notice_period') or '-'} days"
-                    )
-
                 st.write(
-                    "**Required Skills:**"
-                )
-
-                skills = job.get(
-                    "required_skills",
-                    "[]"
-                )
-
-                st.code(
-                    str(skills)
+                    "**Description:**"
                 )
 
                 st.write(
-                    "**Job Description:**"
+                    item["description"]
                 )
 
                 st.write(
-                    job.get(
-                        "description",
-                        "-"
+                    "**Required Skills:**",
+                    ", ".join(
+                        item["required_skills"]
                     )
+                )
+
+                st.write(
+                    "**Preferred Skills:**",
+                    ", ".join(
+                        item["preferred_skills"]
+                    )
+                )
+
+                st.write(
+                    "**Experience:**",
+                    item["experience"]
+                )
+
+                st.write(
+                    "**Education:**",
+                    ", ".join(
+                        item["education"]
+                    )
+                )
+
+                st.write(
+                    "**Notice Period:**",
+                    item["notice_period"]
+                )
+
+                st.write(
+                    "**Salary:**",
+                    f"{item['salary_min'] or '-'} "
+                    f"to "
+                    f"{item['salary_max'] or '-'} LPA"
+                )
+
+                st.write(
+                    "**Location:**",
+                    item["location"]
+                )
+
+                st.write(
+                    "**Regional Preference:**",
+                    item["regional_preference"]
+                )
+
+                st.write(
+                    "**Relocation:**",
+                    item["relocation_willingness"]
                 )
