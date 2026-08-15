@@ -40,8 +40,8 @@ DEBUG = os.getenv(
 # GOOGLE GEMINI
 # =========================================================
 
-GOOGLE_API_KEY = os.getenv(
-    "GOOGLE_API_KEY",
+GEMINI_API_KEY = os.getenv(
+    "GEMINI_API_KEY",
     ""
 )
 
@@ -211,7 +211,7 @@ def is_gemini_configured():
     """
 
     return bool(
-        GOOGLE_API_KEY.strip()
+        GEMINI_API_KEY.strip()
     )
 
 

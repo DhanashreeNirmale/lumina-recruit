@@ -2,65 +2,58 @@ import json
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from config.settings import GEMINI_MODEL, GOOGLE_API_KEY
+from config.settings import GEMINI_MODEL, GEMINI_API_KEY
 
 
-class ResumeAgent:
+class JobAgent:
 
     def __init__(self):
 
-        if not GOOGLE_API_KEY:
+        if not GEMINI_API_KEY:
             raise ValueError(
-                "GOOGLE_API_KEY is missing. "
-                "Add it to your .env file."
+                "GOOGLE_API_KEY is missing."
             )
 
         self.llm = ChatGoogleGenerativeAI(
             model=GEMINI_MODEL,
-            google_api_key=GOOGLE_API_KEY,
+            google_api_key=GEMINI_API_KEY,
             temperature=0,
         )
 
-    def analyze(self, resume_text):
+    def analyze(self, job_description):
 
         prompt = f"""
 You are an Indian technology recruitment assistant.
 
-Analyze the following resume.
+Analyze this job description.
 
-Return ONLY valid JSON with these fields:
+Return ONLY valid JSON with:
 
-name
-email
-phone
-skills
-experience
-education
-college
+title
+required_skills
+experience_required
+education_required
 location
-notice_period
-expected_salary
-relocation
+min_salary
+max_salary
+max_notice_period
+relocation_required
 
 Rules:
-- skills must be a JSON list.
-- experience must be a number.
-- notice_period must be a number of days or null.
-- expected_salary must be a number in LPA or null.
-- relocation must be true, false, or null.
-- Do not invent information.
-- If information is missing, use null or an empty string/list.
+- required_skills must be a list.
+- experience_required must be a number.
+- salaries are LPA numbers.
+- max_notice_period is days.
+- Do not invent requirements that are not reasonably present.
+- Use null when information is missing.
 
-RESUME:
-{resume_text}
+JOB DESCRIPTION:
+{job_description}
 """
 
         response = self.llm.invoke(prompt)
 
-        content = response.content
-
-        # Gemini normally returns text. Remove markdown fences if present.
-        content = content.strip()
+        content = response.content.strip()
 
         if content.startswith("```"):
             content = content.replace("```json", "")
