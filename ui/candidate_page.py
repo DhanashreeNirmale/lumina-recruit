@@ -17,7 +17,7 @@ from database.models import (
 )
 
 from matching.matcher import score_candidate
-from resume_parser.parser import extract_text
+from resume_parser.parser import extract_text_from_file
 
 
 # ============================================================
@@ -75,6 +75,10 @@ def _display_value(value):
 
     return text
 
+
+# ============================================================
+# DISPLAY PARSED RESUME
+# ============================================================
 
 def display_parsed_resume(data):
     """
@@ -135,6 +139,7 @@ def display_parsed_resume(data):
 
         try:
             skills = json.loads(skills)
+
         except json.JSONDecodeError:
 
             skills = [
@@ -200,10 +205,41 @@ def display_parsed_resume(data):
         st.write("Not provided")
 
     # ========================================================
+    # COLLEGE / UNIVERSITY
+    # ========================================================
+
+    st.markdown("### 🏫 Academic Details")
+
+    st.write(
+        f"**College:** "
+        f"{_display_value(data.get('college'))}"
+    )
+
+    st.write(
+        f"**University:** "
+        f"{_display_value(data.get('university'))}"
+    )
+
+    st.write(
+        f"**Graduation Year:** "
+        f"{_display_value(data.get('graduation_year'))}"
+    )
+
+    st.write(
+        f"**CGPA / Percentage:** "
+        f"{_display_value(data.get('cgpa_percentage'))}"
+    )
+
+    # ========================================================
     # EXPERIENCE DETAILS
     # ========================================================
 
     st.markdown("### 💼 Experience Details")
+
+    st.write(
+        f"**Experience Years:** "
+        f"{_display_value(data.get('experience_years'))}"
+    )
 
     experience_details = data.get(
         "experience_details",
@@ -347,8 +383,8 @@ def display_parsed_resume(data):
     with col1:
 
         st.write(
-            f"**Current Salary:** "
-            f"{_display_value(data.get('current_salary'))}"
+            f"**Current CTC:** "
+            f"{_display_value(data.get('current_ctc'))}"
         )
 
     with col2:
@@ -357,6 +393,32 @@ def display_parsed_resume(data):
             f"**Expected Salary:** "
             f"{_display_value(data.get('expected_salary'))}"
         )
+
+    # ========================================================
+    # LOCATION / RELOCATION
+    # ========================================================
+
+    st.markdown("### 📍 Location & Preferences")
+
+    st.write(
+        f"**Preferred City:** "
+        f"{_display_value(data.get('preferred_city'))}"
+    )
+
+    st.write(
+        f"**Preferred State:** "
+        f"{_display_value(data.get('preferred_state'))}"
+    )
+
+    st.write(
+        f"**Preferred Mode:** "
+        f"{_display_value(data.get('preferred_mode'))}"
+    )
+
+    st.write(
+        f"**Relocation Willingness:** "
+        f"{_display_value(data.get('relocation_willingness'))}"
+    )
 
     # ========================================================
     # RESUME SUMMARY
@@ -384,57 +446,6 @@ def display_parsed_resume(data):
     else:
 
         st.write("Not provided")
-
-    # ========================================================
-    # OTHER PARSED INFORMATION
-    # ========================================================
-
-    known_fields = {
-        "name",
-        "email",
-        "phone",
-        "location",
-        "experience",
-        "notice_period",
-        "skills",
-        "education",
-        "experience_details",
-        "work_experience",
-        "experience_summary",
-        "projects",
-        "certifications",
-        "current_salary",
-        "expected_salary",
-        "summary",
-        "profile_summary",
-        "professional_summary",
-        "resume_filename",
-        "resume_text",
-    }
-
-    additional_fields = {
-        key: value
-        for key, value in data.items()
-        if key not in known_fields
-    }
-
-    if additional_fields:
-
-        st.markdown(
-            "### 🔎 Additional Parsed Information"
-        )
-
-        for key, value in additional_fields.items():
-
-            readable_key = (
-                key.replace("_", " ")
-                .title()
-            )
-
-            st.write(
-                f"**{readable_key}:** "
-                f"{_display_value(value)}"
-            )
 
 
 # ============================================================
@@ -494,6 +505,10 @@ def show_candidate_page():
 
                 total_files = len(files)
 
+                # Create agent once instead of creating it
+                # repeatedly for every resume.
+                resume_agent = ResumeAgent()
+
                 for index, uploaded_file in enumerate(files):
 
                     try:
@@ -502,11 +517,11 @@ def show_candidate_page():
                         # EXTRACT RESUME TEXT
                         # ====================================
 
-                        text = extract_text(
+                        text = extract_text_from_file(
                             uploaded_file
                         )
 
-                        if not text:
+                        if not text or not text.strip():
 
                             st.warning(
                                 f"{uploaded_file.name}: "
@@ -519,7 +534,7 @@ def show_candidate_page():
                         # AI RESUME ANALYSIS
                         # ====================================
 
-                        parsed_data = ResumeAgent().analyze(
+                        parsed_data = resume_agent.analyze(
                             text
                         )
 
