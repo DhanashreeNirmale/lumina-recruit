@@ -2,7 +2,6 @@ import sqlite3
 
 from config.settings import DATABASE_PATH
 
-
 def get_connection():
 
     connection = sqlite3.connect(
@@ -55,6 +54,8 @@ def initialize_database():
         CREATE TABLE IF NOT EXISTS candidates (
 
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER NOT NULL,
 
             name TEXT NOT NULL,
 

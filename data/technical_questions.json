@@ -1,0 +1,69 @@
+[
+  {
+    "category": "Programming",
+    "question_text": "Write a python function `is_palindrome(s)` that takes a string `s` and returns `True` if it is a palindrome, and `False` otherwise.",
+    "code_template": "def is_palindrome(s: str) -> bool:\n    # Write your code here\n    pass\n",
+    "test_cases": [
+      {
+        "input": "radar",
+        "output": "True"
+      },
+      {
+        "input": "hello",
+        "output": "False"
+      },
+      {
+        "input": "a",
+        "output": "True"
+      }
+    ],
+    "correct_answer": "True",
+    "marks": 10
+  },
+  {
+    "category": "Programming",
+    "question_text": "Write a python function `fizzbuzz(n)` that returns the string 'Fizz' if `n` is divisible by 3, 'Buzz' if divisible by 5, 'FizzBuzz' if divisible by both 3 and 5, and the string representation of `n` otherwise.",
+    "code_template": "def fizzbuzz(n: int) -> str:\n    # Write your code here\n    pass\n",
+    "test_cases": [
+      {
+        "input": "3",
+        "output": "Fizz"
+      },
+      {
+        "input": "5",
+        "output": "Buzz"
+      },
+      {
+        "input": "15",
+        "output": "FizzBuzz"
+      },
+      {
+        "input": "4",
+        "output": "4"
+      }
+    ],
+    "correct_answer": "Fizz",
+    "marks": 15
+  },
+  {
+    "category": "Programming",
+    "question_text": "Write a python function `sum_even_numbers(lst)` that takes a list of integers and returns the sum of all even numbers in the list.",
+    "code_template": "def sum_even_numbers(lst: list) -> int:\n    # Write your code here\n    pass\n",
+    "test_cases": [
+      {
+        "input": "[1, 2, 3, 4, 5, 6]",
+        "output": "12"
+      },
+      {
+        "input": "[1, 3, 5]",
+        "output": "0"
+      },
+      {
+        "input": "[2, 4, 8]",
+        "output": "14"
+      }
+    ],
+    "correct_answer": "12",
+    "marks": 15
+  }
+]

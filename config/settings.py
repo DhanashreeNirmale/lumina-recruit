@@ -47,6 +47,7 @@ DATABASE_PATH = (
     / "recruiter_ai.db"
 )
 
+print("DATABASE PATH:", DATABASE_PATH)
 
 # ============================================================
 # JUDGE0 CONFIGURATION

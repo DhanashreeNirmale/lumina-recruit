@@ -1,0 +1,98 @@
+[
+  {
+    "category": "Quantitative Aptitude",
+    "question_text": "A train 120 meters long passes a telegraph post in 6 seconds. Find the speed of the train in km/hr.",
+    "options": [
+      "A) 60 km/hr",
+      "B) 72 km/hr",
+      "C) 80 km/hr",
+      "D) 90 km/hr"
+    ],
+    "correct_answer": "B",
+    "marks": 5
+  },
+  {
+    "category": "Quantitative Aptitude",
+    "question_text": "If the cost price of 15 articles is equal to the selling price of 12 articles, find the profit percent.",
+    "options": [
+      "A) 15%",
+      "B) 20%",
+      "C) 25%",
+      "D) 30%"
+    ],
+    "correct_answer": "C",
+    "marks": 5
+  },
+  {
+    "category": "Logical Reasoning",
+    "question_text": "Look at this series: 2, 1, (1/2), (1/4), ... What number should come next?",
+    "options": [
+      "A) (1/3)",
+      "B) (1/8)",
+      "C) (2/8)",
+      "D) (1/16)"
+    ],
+    "correct_answer": "B",
+    "marks": 5
+  },
+  {
+    "category": "Logical Reasoning",
+    "question_text": "If BLUE is coded as 212215 in a certain language, how is RED coded?",
+    "options": [
+      "A) 1854",
+      "B) 954",
+      "C) 18224",
+      "D) 9224"
+    ],
+    "correct_answer": "A",
+    "marks": 5
+  },
+  {
+    "category": "Verbal Ability",
+    "question_text": "Choose the word that is most nearly opposite in meaning to: 'BENEVOLENT'",
+    "options": [
+      "A) Malevolent",
+      "B) Kind",
+      "C) Friendly",
+      "D) Generous"
+    ],
+    "correct_answer": "A",
+    "marks": 5
+  },
+  {
+    "category": "Verbal Ability",
+    "question_text": "Identify the grammatically correct sentence.",
+    "options": [
+      "A) Neither of the candidates are qualified.",
+      "B) Neither of the candidates is qualified.",
+      "C) Neither of the candidates were qualified.",
+      "D) Neither of the candidates have qualified."
+    ],
+    "correct_answer": "B",
+    "marks": 5
+  },
+  {
+    "category": "Computer Fundamentals",
+    "question_text": "Which of the following is NOT an operating system?",
+    "options": [
+      "A) Windows",
+      "B) Linux",
+      "C) Oracle",
+      "D) macOS"
+    ],
+    "correct_answer": "C",
+    "marks": 5
+  },
+  {
+    "category": "Computer Fundamentals",
+    "question_text": "In computer networking, what does the acronym HTTP stand for?",
+    "options": [
+      "A) Hyper Text Transfer Protocol",
+      "B) Hyper Tech Transmission Protocol",
+      "C) High Transfer Text Protocol",
+      "D) Hyper Terminal Text Protocol"
+    ],
+    "correct_answer": "A",
+    "marks": 5
+  }
+]

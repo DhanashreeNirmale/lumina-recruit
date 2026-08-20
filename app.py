@@ -1,46 +1,53 @@
 import streamlit as st
 
-from database.database import initialize_database
-from ui.dashboard import show_dashboard
-from ui.job_page import show_job_page
-from ui.candidate_page import show_candidate_page
-from ui.assessment_page import show_assessment_page
-from ui.ranking_page import show_ranking_page
-
-
+# MUST BE FIRST Streamlit command
 st.set_page_config(
-    page_title="Lumina Recruit",
-    page_icon="🤖",
+    page_title="Lumina Recruit — Agentic AI Recruitment Platform",
     layout="wide",
+    initial_sidebar_state="expanded"
 )
 
+from database.models import initialize_database
+from ui.landing import show_landing_page
+from ui.auth import show_auth_page
+from ui.student import show_student_portal
+from ui.recruiter import show_recruiter_portal
+
+# Initialize SQLite database
 initialize_database()
 
-st.sidebar.title("🤖 Lumina Recruit")
-st.sidebar.caption("Indian Tech Recruitment Assistant")
+# Manage state routing
+if "page" not in st.session_state:
+    st.session_state.page = "landing"
 
-page = st.sidebar.radio(
-    "Recruiter Workspace",
-    [
-        "Dashboard",
-        "Jobs",
-        "Candidates",
-        "Technical Assessment",
-        "Ranking",
-    ],
-)
+# Sidebar controls for authenticated users
+if st.session_state.page not in ["landing", "auth"] and st.session_state.get("user"):
+    user = st.session_state.user
+    st.sidebar.title("LUMINA RECRUIT")
+    st.sidebar.caption("Two-Sided Recruitment Platform")
+    
+    st.sidebar.markdown("---")
+    st.sidebar.write(f"Logged in as: **{user['username']}**")
+    st.sidebar.write(f"Role: `{user['role'].capitalize()}`")
+    
+    # Let recruiters clear applicant drill-down view
+    if user['role'] == "recruiter" and st.session_state.get("view_app_detail_id"):
+        if st.sidebar.button("📁 All Applications"):
+            st.session_state.pop("view_app_detail_id", None)
+            st.rerun()
+            
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🚪 Log Out", type="primary", use_container_width=True):
+        st.session_state.clear()
+        st.session_state.page = "landing"
+        st.rerun()
 
-if page == "Dashboard":
-    show_dashboard()
-
-elif page == "Jobs":
-    show_job_page()
-
-elif page == "Candidates":
-    show_candidate_page()
-
-elif page == "Technical Assessment":
-    show_assessment_page()
-
-elif page == "Ranking":
-    show_ranking_page()
+# Page Routing
+if st.session_state.page == "landing":
+    show_landing_page()
+elif st.session_state.page == "auth":
+    show_auth_page()
+elif st.session_state.page == "student_dashboard":
+    show_student_portal()
+elif st.session_state.page == "recruiter_dashboard":
+    show_recruiter_portal()
