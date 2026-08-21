@@ -116,7 +116,7 @@ def show_landing_page():
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("<div style='text-align: right;'>", unsafe_allow_html=True)
-        if st.button("🙋‍♂️ I'm Looking for a Job", use_container_width=True, type="primary"):
+        if st.button(" I'm Looking for a Job", use_container_width=True, type="primary"):
             st.session_state.page = "auth"
             st.session_state.role = "student"
             st.rerun()
@@ -124,7 +124,7 @@ def show_landing_page():
 
     with col2:
         st.markdown("<div style='text-align: left;'>", unsafe_allow_html=True)
-        if st.button("💼 I'm Hiring / Managing", use_container_width=True):
+        if st.button(" I'm Hiring / Managing", use_container_width=True):
             st.session_state.page = "auth"
             st.session_state.role = "recruiter"
             st.rerun()

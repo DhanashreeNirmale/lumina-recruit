@@ -45,7 +45,7 @@ def show_student_portal():
     # Header
     st.markdown(f"""
     <div class="student-header">
-        <h2 style="margin:0; color:white; font-size:28px;">🙋‍♂️ Candidate Workspace</h2>
+        <h2 style="margin:0; color:white; font-size:28px;"> Candidate Workspace</h2>
         <p style="margin:5px 0 0 0; color:#c7d2fe;">Welcome back, {user['username']}! Manage your profile, apply to jobs, and complete assessments.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -61,7 +61,7 @@ def show_student_portal():
     if selected_tab == "Dashboard":
         col1, col2 = st.columns([2, 1])
         with col1:
-            st.subheader("🚀 Getting Started")
+            st.subheader(" Getting Started")
             st.write("Complete these simple steps to start applying for jobs:")
             
             # Check profile completeness
@@ -91,12 +91,12 @@ def show_student_portal():
     # 2. RESUME & PROFILE TAB
     # ========================================================
     elif selected_tab == "Resume & Profile":
-        st.subheader("📄 Resume Upload & Profile Parsing")
+        st.subheader("Resume Upload & Profile Parsing")
         
         uploaded_file = st.file_uploader("Upload your resume (PDF, DOCX, or TXT)", type=["pdf", "docx", "txt"])
         
         if uploaded_file is not None:
-            if st.button("⚡ Parse Resume with AI"):
+            if st.button(" Parse Resume with AI"):
                 with st.spinner("Extracting and analyzing resume..."):
                     try:
                         file_bytes = uploaded_file.getvalue()
@@ -109,7 +109,7 @@ def show_student_portal():
                         
         # Profile Editor Form
         st.write("---")
-        st.subheader("✏️ Edit Profile Details")
+        st.subheader(" Edit Profile Details")
         
         if candidate:
             with st.form("profile_form"):
@@ -166,14 +166,14 @@ def show_student_portal():
     # 3. FIND JOBS TAB
     # ========================================================
     elif selected_tab == "Find Jobs":
-        st.subheader("🔍 Active Job Openings")
+        st.subheader(" Active Job Openings")
         
         jobs = get_all_jobs()
         if not jobs:
             st.info("No job openings available currently.")
         else:
             for job in jobs:
-                with st.expander(f"💼 {job['title']} — {job['location'] or 'Remote'}"):
+                with st.expander(f" {job['title']} — {job['location'] or 'Remote'}"):
                     st.write(f"**Experience Required:** {job['min_experience']} years")
                     st.write(f"**Salary Range:** {job['min_salary']} - {job['max_salary']} LPA")
                     st.write(f"**Max Notice Period:** {job['max_notice_period']} days")
@@ -231,7 +231,7 @@ def show_student_portal():
     # 5. ASSESSMENTS TAB
     # ========================================================
     elif selected_tab == "Assessments":
-        st.subheader("✏️ Assigned Assessments")
+        st.subheader(" Assigned Assessments")
         
         if not candidate:
             st.info("Profile not created.")
@@ -242,7 +242,7 @@ def show_student_portal():
             
             st.write("### Pending Assessments")
             if not pending_asms:
-                st.success("🎉 No pending assessments! You are up to date.")
+                st.success(" No pending assessments! You are up to date.")
             else:
                 for asm in pending_asms:
                     with st.container():
@@ -269,7 +269,7 @@ def show_student_portal():
         if st.session_state.get("active_assessment"):
             asm = st.session_state.active_assessment
             st.write("---")
-            st.markdown(f"### 📝 Taking {asm['type']} Test for {asm['job_title']}")
+            st.markdown(f"### Taking {asm['type']} Test for {asm['job_title']}")
             
             # Load Questions
             questions = get_all_questions_by_type(asm["type"])
@@ -330,7 +330,7 @@ def show_student_portal():
     # 6. MESSAGES TAB
     # ========================================================
     elif selected_tab == "Messages":
-        st.subheader("💬 Recruiter Messaging")
+        st.subheader(" Recruiter Messaging")
         
         if not candidate:
             st.info("Profile not created.")
@@ -389,7 +389,7 @@ def show_student_portal():
                 for item in ints:
                     st.markdown(f"""
                     <div class="profile-card">
-                        <h3>💼 {item['job_title']}</h3>
+                        <h3> {item['job_title']}</h3>
                         <p><b>Date:</b> {item['interview_date']} | <b>Time:</b> {item['interview_time']}</p>
                         <p><b>Mode:</b> {item['mode']}</p>
                         <p><b>Link/Venue:</b> <a href="{item['venue_link']}" target="_blank">{item['venue_link']}</a></p>

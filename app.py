@@ -37,7 +37,7 @@ if st.session_state.page not in ["landing", "auth"] and st.session_state.get("us
             st.rerun()
             
     st.sidebar.markdown("---")
-    if st.sidebar.button("🚪 Log Out", type="primary", use_container_width=True):
+    if st.sidebar.button(" Log Out", type="primary", use_container_width=True):
         st.session_state.clear()
         st.session_state.page = "landing"
         st.rerun()
